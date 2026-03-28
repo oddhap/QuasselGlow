@@ -590,6 +590,26 @@
                                                                 Classes.priority="{Binding HasPriorityAlert}"
                                                                 Command="{Binding #RootWindow.DataContext.SelectBufferCommand}"
                                                                 CommandParameter="{Binding}">
+                                                            <Button.ContextMenu>
+                                                                <ContextMenu>
+                                                                    <MenuItem Header="{Binding #RootWindow.DataContext.Strings[MarkAsRead]}"
+                                                                              Command="{Binding #RootWindow.DataContext.MarkBufferAsReadCommand}"
+                                                                              CommandParameter="{Binding}" />
+                                                                    <Separator IsVisible="{Binding ShowBufferCommandSeparator}" />
+                                                                    <MenuItem Header="{Binding #RootWindow.DataContext.Strings[RejoinChannel]}"
+                                                                              Command="{Binding #RootWindow.DataContext.RejoinChannelBufferCommand}"
+                                                                              CommandParameter="{Binding}"
+                                                                              IsVisible="{Binding IsChannel}" />
+                                                                    <MenuItem Header="{Binding #RootWindow.DataContext.Strings[LeaveChannel]}"
+                                                                              Command="{Binding #RootWindow.DataContext.LeaveChannelBufferCommand}"
+                                                                              CommandParameter="{Binding}"
+                                                                              IsVisible="{Binding IsChannel}" />
+                                                                    <MenuItem Header="{Binding #RootWindow.DataContext.Strings[Whois]}"
+                                                                              Command="{Binding #RootWindow.DataContext.WhoisBufferCommand}"
+                                                                              CommandParameter="{Binding}"
+                                                                              IsVisible="{Binding IsQuery}" />
+                                                                </ContextMenu>
+                                                            </Button.ContextMenu>
                                                             <Grid ColumnDefinitions="Auto,*,Auto">
                                                                 <Border Width="24"
                                                                         Height="24"

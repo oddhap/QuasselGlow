@@ -45,8 +45,11 @@ public sealed partial class BufferItemViewModel : ViewModelBase
     public ObservableCollection<MessageItemViewModel> Messages { get; } = [];
     public ObservableCollection<ChannelUserViewModel> ChannelUsers { get; } = [];
     public bool AcceptsInput => BufferInfo.AcceptsInput;
+    public bool IsChannel => BufferInfo.Type == QuasselBufferType.Channel;
+    public bool IsQuery => BufferInfo.Type == QuasselBufferType.Query;
     public bool HasUnread => UnreadCount > 0;
     public bool HasPriorityAlert => HasMentionAlert || HasPrivateMessageAlert;
+    public bool ShowBufferCommandSeparator => IsChannel || IsQuery;
     public int MemberCount => ChannelUsers.Count;
     public bool HasChannelUsers => MemberCount > 0;
     public string SidebarSecondaryText => BufferInfo.Type switch
@@ -72,6 +75,9 @@ public sealed partial class BufferItemViewModel : ViewModelBase
         DisplayName = info.BufferName;
         OnPropertyChanged(nameof(BufferInfo));
         OnPropertyChanged(nameof(AcceptsInput));
+        OnPropertyChanged(nameof(IsChannel));
+        OnPropertyChanged(nameof(IsQuery));
+        OnPropertyChanged(nameof(ShowBufferCommandSeparator));
         OnPropertyChanged(nameof(Prefix));
         OnPropertyChanged(nameof(SidebarSecondaryText));
         OnPropertyChanged(nameof(HasSidebarSecondaryText));

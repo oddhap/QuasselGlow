@@ -551,6 +551,30 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     }
 
     [RelayCommand]
+    private void MarkBufferAsRead(BufferItemViewModel? buffer)
+    {
+        buffer?.MarkRead();
+    }
+
+    [RelayCommand]
+    private Task RejoinChannelBufferAsync(BufferItemViewModel? buffer)
+    {
+        return SendBufferCommandAsync(buffer, QuasselBufferType.Channel, static bufferInfo => $"/join {bufferInfo.BufferName}");
+    }
+
+    [RelayCommand]
+    private Task LeaveChannelBufferAsync(BufferItemViewModel? buffer)
+    {
+        return SendBufferCommandAsync(buffer, QuasselBufferType.Channel, static bufferInfo => $"/part {bufferInfo.BufferName}");
+    }
+
+    [RelayCommand]
+    private Task WhoisBufferAsync(BufferItemViewModel? buffer)
+    {
+        return SendBufferCommandAsync(buffer, QuasselBufferType.Query, static bufferInfo => $"/whois {bufferInfo.BufferName}");
+    }
+
+    [RelayCommand]
     private void SelectBuffer(BufferItemViewModel? buffer)
     {
         SelectedBuffer = buffer;
@@ -795,10 +819,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     private void ApplyMessage(QuasselMessage message)
     {
-        if (!_buffersById.TryGetValue(message.BufferInfo.BufferId, out var buffer))
+        if (!_buffersById.TryGetValue(message.BufferInfo.BufferId, out var existingBuffer)
+            && IsChannelBufferRemovalMessage(message))
+        {
+            return;
+        }
+
+        var buffer = existingBuffer;
+        if (buffer is null)
         {
             UpsertBuffer(message.BufferInfo);
-            buffer = _buffersById[message.BufferInfo.BufferId];
+            if (!_buffersById.TryGetValue(message.BufferInfo.BufferId, out buffer))
+            {
+                return;
+            }
         }
 
         var shouldTrackUnread = SelectedBuffer?.BufferInfo.BufferId != buffer.BufferInfo.BufferId || !_canAcknowledgeSelectedBuffer;
@@ -808,7 +842,42 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             RaiseSelectionTextPropertiesChanged();
         }
 
+        if (IsChannelBufferRemovalMessage(message))
+        {
+            RemoveBuffer(buffer);
+            return;
+        }
+
         OnPropertyChanged(nameof(TrayToolTipText));
+    }
+
+    private void RemoveBuffer(BufferItemViewModel buffer)
+    {
+        if (!_buffersById.Remove(buffer.BufferInfo.BufferId))
+        {
+            return;
+        }
+
+        buffer.PropertyChanged -= OnBufferPropertyChanged;
+
+        if (_networksById.TryGetValue(buffer.BufferInfo.NetworkId, out var network))
+        {
+            network.RemoveBuffer(buffer.BufferInfo.BufferId);
+        }
+
+        if (buffer.BufferInfo.Type == QuasselBufferType.Channel)
+        {
+            _channelStatesByKey.Remove(BuildChannelStateKey(buffer.BufferInfo.NetworkId, buffer.BufferInfo.BufferName));
+        }
+
+        if (SelectedBuffer?.BufferInfo.BufferId == buffer.BufferInfo.BufferId)
+        {
+            SelectedBuffer = PickInitialBuffer();
+        }
+
+        RaiseSelectionTextPropertiesChanged();
+        OnPropertyChanged(nameof(TrayToolTipText));
+        OnPropertyChanged(nameof(SessionSummaryText));
     }
 
     private void RemoveNetwork(NetworkId networkId)
@@ -1219,9 +1288,32 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         return $"{networkId.Value}/{channelName.Trim()}";
     }
 
+    private static bool IsChannelBufferRemovalMessage(QuasselMessage message)
+    {
+        return message.BufferInfo.Type == QuasselBufferType.Channel
+            && message.IsSelf
+            && message.Type.HasFlag(QuasselMessageType.Part);
+    }
+
     private Task SendModeChangeForChannelUserAsync(ChannelUserViewModel? user, string modeChange)
     {
         return SendChannelCommandForUserAsync(user, channelName => $"/mode {channelName} {modeChange} {user!.Nick}");
+    }
+
+    private Task SendBufferCommandAsync(
+        BufferItemViewModel? buffer,
+        QuasselBufferType requiredType,
+        Func<QuasselBufferInfo, string> commandFactory)
+    {
+        if (buffer is null
+            || buffer.BufferInfo.Type != requiredType
+            || string.IsNullOrWhiteSpace(buffer.BufferInfo.BufferName))
+        {
+            return Task.CompletedTask;
+        }
+
+        var bufferInfo = buffer.BufferInfo;
+        return _session.SendInputAsync(bufferInfo, commandFactory(bufferInfo));
     }
 
     private Task SendChannelCommandForUserAsync(ChannelUserViewModel? user, Func<string, string> commandFactory)
