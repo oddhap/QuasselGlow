@@ -339,17 +339,92 @@
 
         <Grid Grid.Row="1" Margin="18,14,18,14" ColumnDefinitions="330,*,Auto" ColumnSpacing="14">
             <Border Classes="panel" Padding="18,14">
-                <Grid RowDefinitions="Auto,Auto">
-                    <TextBlock Text="Quassel"
-                               FontSize="28"
-                               FontWeight="Bold"
-                               Foreground="{StaticResource InkStrong}" />
-                    <TextBlock Grid.Row="1"
-                                Margin="0,-8,0,0"
-                                Text="Glow"
-                                FontSize="20"
-                                FontWeight="SemiBold"
-                                Foreground="{StaticResource AccentTeal}" />
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="18">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="Quassel"
+                                   FontSize="28"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource InkStrong}" />
+                        <TextBlock Margin="0,-8,0,0"
+                                   Text="Glow"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentTeal}" />
+                    </StackPanel>
+
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding Strings[ThemeLabel]}"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource InkStrong}" />
+                            <TextBlock Text="{Binding ThemeSummaryText}"
+                                       Foreground="{StaticResource InkSoft}" />
+                        </StackPanel>
+
+                        <Button x:Name="ThemeEditButton"
+                                Grid.Column="1"
+                                Classes="infoToggle"
+                                Command="{Binding ToggleThemeEditorCommand}"
+                                Content="{Binding Strings[Settings]}" />
+                    </Grid>
+
+                    <primitives:Popup IsOpen="{Binding IsThemeEditorOpen, Mode=TwoWay}"
+                                      IsLightDismissEnabled="True"
+                                      PlacementTarget="{Binding #ThemeEditButton}"
+                                      Placement="BottomEdgeAlignedLeft"
+                                      VerticalOffset="12">
+                        <Border Classes="drawerShell"
+                                Width="420"
+                                Padding="18">
+                            <Grid RowDefinitions="Auto,Auto" RowSpacing="14">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding Strings[Settings]}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding ThemeSummaryText}"
+                                                   Foreground="{StaticResource InkSoft}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Classes="infoToggle"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding CloseThemeEditorCommand}"
+                                            Content="{Binding Strings[Close]}" />
+                                </Grid>
+
+                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
+                                    <Grid ColumnDefinitions="Auto,*,132" ColumnSpacing="12" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Strings[ThemeLabel]}"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource InkSoft}" />
+                                        <ComboBox Grid.Column="1"
+                                                  MinWidth="180"
+                                                  ItemsSource="{Binding SupportedThemes}"
+                                                  SelectedItem="{Binding SelectedTheme}" />
+                                        <ComboBox Grid.Column="2"
+                                                  MinWidth="132"
+                                                  ItemsSource="{Binding SupportedThemeModes}"
+                                                  SelectedItem="{Binding SelectedThemeMode}" />
+                                    </Grid>
+
+                                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Strings[LanguageLabel]}"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource InkSoft}" />
+                                        <ComboBox Grid.Column="1"
+                                                  MinWidth="220"
+                                                  ItemsSource="{Binding SupportedLanguages}"
+                                                  SelectedValueBinding="{Binding Code}"
+                                                  SelectedValue="{Binding SelectedLanguageCode}" />
+                                    </Grid>
+
+                                    <CheckBox Grid.Row="2"
+                                              Content="{Binding Strings[MinimizeToTray]}"
+                                              IsChecked="{Binding MinimizeToTrayEnabled}" />
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </primitives:Popup>
                 </Grid>
             </Border>
 
@@ -430,7 +505,7 @@
                         </Border>
                     </StackPanel>
 
-                    <primitives:Popup IsOpen="{Binding IsConnectionEditorOpen}"
+                    <primitives:Popup IsOpen="{Binding IsConnectionEditorOpen, Mode=TwoWay}"
                                       IsLightDismissEnabled="True"
                                       PlacementTarget="{Binding #ConnectionEditButton}"
                                       Placement="BottomEdgeAlignedRight"
@@ -455,7 +530,7 @@
                                             Content="{Binding Strings[Close]}" />
                                 </Grid>
 
-                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto" RowSpacing="10">
                                     <Grid ColumnDefinitions="*,96" ColumnSpacing="10">
                                         <TextBox Watermark="{Binding Strings[Host]}"
                                                  Text="{Binding Host}" />
@@ -473,73 +548,22 @@
                                                  Text="{Binding Password}" />
                                     </Grid>
 
-                                    <Grid Grid.Row="2" ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Strings[LanguageLabel]}"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{StaticResource InkSoft}" />
-                                        <ComboBox Grid.Column="1"
-                                                  MinWidth="220"
-                                                  ItemsSource="{Binding SupportedLanguages}"
-                                                  SelectedItem="{Binding SelectedLanguage}" />
-                                    </Grid>
-
-                                    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="12" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Strings[ThemeLabel]}"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{StaticResource InkSoft}" />
-                                        <ComboBox Grid.Column="1"
-                                                  MinWidth="150"
-                                                  ItemsSource="{Binding SupportedThemes}"
-                                                  SelectedItem="{Binding SelectedTheme}" />
-                                        <TextBlock Grid.Column="2"
-                                                   Text="{Binding Strings[ThemeModeLabel]}"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{StaticResource InkSoft}" />
-                                        <ComboBox Grid.Column="3"
-                                                  MinWidth="120"
-                                                  ItemsSource="{Binding SupportedThemeModes}"
-                                                  SelectedItem="{Binding SelectedThemeMode}" />
-                                    </Grid>
                                 </Grid>
 
-                                <Grid Grid.Row="2" RowDefinitions="Auto,Auto" RowSpacing="12">
-                                    <StackPanel Spacing="8"
+                                <StackPanel Grid.Row="2"
+                                            Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="12"
                                                 VerticalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal"
-                                                    Spacing="12"
-                                                    VerticalAlignment="Center">
-                                            <CheckBox VerticalAlignment="Center"
-                                                      Content="{Binding Strings[RememberLogin]}"
-                                                      IsChecked="{Binding RememberLogin}" />
-                                            <CheckBox VerticalAlignment="Center"
-                                                      Content="{Binding Strings[AllowInsecureTls]}"
-                                                      IsChecked="{Binding TrustInvalidCertificates}" />
-                                        </StackPanel>
-                                        <CheckBox Content="{Binding Strings[MinimizeToTray]}"
-                                                  IsChecked="{Binding MinimizeToTrayEnabled}" />
+                                        <CheckBox VerticalAlignment="Center"
+                                                  Content="{Binding Strings[RememberLogin]}"
+                                                  IsChecked="{Binding RememberLogin}" />
+                                        <CheckBox VerticalAlignment="Center"
+                                                  Content="{Binding Strings[AllowInsecureTls]}"
+                                                  IsChecked="{Binding TrustInvalidCertificates}" />
                                     </StackPanel>
-
-                                    <StackPanel Grid.Row="1"
-                                                Orientation="Horizontal"
-                                                Spacing="10"
-                                                HorizontalAlignment="Right">
-                                        <Button Classes="infoToggle"
-                                                Command="{Binding CloseConnectionEditorCommand}"
-                                                Content="{Binding Strings[Done]}" />
-
-                                        <Button Background="{StaticResource AccentTeal}"
-                                                Foreground="White"
-                                                Command="{Binding ConnectCommand}"
-                                                Content="{Binding Strings[Connect]}"
-                                                IsVisible="{Binding ShowConnectAction}" />
-
-                                        <Button Background="{StaticResource AccentRust}"
-                                                Foreground="White"
-                                                Command="{Binding DisconnectCommand}"
-                                                Content="{Binding Strings[Disconnect]}"
-                                                IsVisible="{Binding ShowDisconnectAction}" />
-                                    </StackPanel>
-                                </Grid>
+                                </StackPanel>
                             </Grid>
                         </Border>
                     </primitives:Popup>

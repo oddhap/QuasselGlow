@@ -141,6 +141,76 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ToggleThemeEditor_ClosesConnectionEditorAndUpdatesThemeSummary()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        viewModel.ToggleConnectionEditorCommand.Execute(null);
+        Assert.True(viewModel.IsConnectionEditorOpen);
+
+        viewModel.ToggleThemeEditorCommand.Execute(null);
+
+        Assert.True(viewModel.IsThemeEditorOpen);
+        Assert.False(viewModel.IsConnectionEditorOpen);
+
+        viewModel.SelectedTheme = viewModel.SupportedThemes.Last();
+        viewModel.SelectedThemeMode = viewModel.SupportedThemeModes.Last();
+
+        Assert.Equal(
+            $"{viewModel.SelectedTheme!.DisplayName} / {viewModel.SelectedThemeMode!.DisplayName}",
+            viewModel.ThemeSummaryText);
+    }
+
+    [Fact]
+    public void ChangingLanguage_PreservesLocalizedThemeModeSelection()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        viewModel.SelectedThemeKey = AppThemeCatalog.ThemeKeys.Last();
+        viewModel.SelectedThemeModeKey = "dark";
+        viewModel.SelectedLanguageCode = "nb";
+        var selectedTheme = viewModel.SelectedTheme;
+        var selectedMode = viewModel.SelectedThemeMode;
+
+        viewModel.SelectedLanguageCode = "en_US";
+
+        Assert.Equal(AppThemeCatalog.ThemeKeys.Last(), viewModel.SelectedThemeKey);
+        Assert.Equal("dark", viewModel.SelectedThemeModeKey);
+        Assert.Same(selectedTheme, viewModel.SelectedTheme);
+        Assert.Same(selectedMode, viewModel.SelectedThemeMode);
+        Assert.Contains(viewModel.SelectedTheme!, viewModel.SupportedThemes);
+        Assert.Contains(viewModel.SelectedThemeMode!, viewModel.SupportedThemeModes);
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.SelectedTheme?.DisplayName));
+        Assert.Equal(viewModel.Strings["ThemeModeDark"], viewModel.SelectedThemeMode?.DisplayName);
+    }
+
+    [Fact]
+    public void ChangingLanguage_BetweenLanguagesWithSameThemeModeText_PreservesSelectedThemeMode()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        viewModel.SelectedThemeModeKey = "dark";
+        viewModel.SelectedLanguageCode = "nb";
+        var norwegianSelection = viewModel.SelectedThemeMode;
+
+        viewModel.SelectedLanguageCode = "da";
+        var danishSelection = viewModel.SelectedThemeMode;
+
+        Assert.NotNull(norwegianSelection);
+        Assert.NotNull(danishSelection);
+        Assert.Same(norwegianSelection, danishSelection);
+        Assert.Equal("dark", danishSelection.Key);
+        Assert.Contains(danishSelection, viewModel.SupportedThemeModes);
+        Assert.Equal(viewModel.Strings["ThemeModeDark"], danishSelection.DisplayName);
+    }
+
+    [Fact]
     public void ToggleUserListPinned_OpensPanePersistsSettingAndSwitchesDisplayMode()
     {
         var session = new FakeSessionService();

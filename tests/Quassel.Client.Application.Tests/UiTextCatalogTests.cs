@@ -1,4 +1,5 @@
 using QuasselGlow.Localization;
+using System.Reflection;
 
 namespace Quassel.Client.Application.Tests;
 
@@ -62,6 +63,22 @@ public sealed class UiTextCatalogTests
         }
 
         catalog.SetLanguage(UiTextCatalog.DefaultLanguageCode);
+    }
+
+    [Fact]
+    public void EverySupportedLanguage_ContainsAllEnglishKeys()
+    {
+        var packsField = typeof(UiTextCatalog).GetField("Packs", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(packsField);
+
+        var packs = Assert.IsAssignableFrom<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>>(packsField!.GetValue(null));
+        var englishKeys = Assert.Contains(UiTextCatalog.DefaultLanguageCode, packs).Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+
+        foreach (var code in ExpectedCodes)
+        {
+            var pack = Assert.Contains(code, packs);
+            Assert.Equal(englishKeys, pack.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray());
+        }
     }
 
     [Theory]

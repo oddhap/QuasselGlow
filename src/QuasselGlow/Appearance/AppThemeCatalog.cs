@@ -1,4 +1,5 @@
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace QuasselGlow.Appearance;
 
@@ -742,7 +743,23 @@ public sealed record AppThemePalette(
     Color WindowChromeClosePressedFg,
     Color BufferPrefixBg);
 
-public sealed record AppDisplayOption(string Key, string DisplayName)
+public sealed class AppDisplayOption : ObservableObject
 {
+    private string _displayName;
+
+    public AppDisplayOption(string key, string displayName)
+    {
+        Key = key;
+        _displayName = displayName;
+    }
+
+    public string Key { get; }
+
+    public string DisplayName
+    {
+        get => _displayName;
+        set => SetProperty(ref _displayName, value);
+    }
+
     public override string ToString() => DisplayName;
 }

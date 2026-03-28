@@ -32,8 +32,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private string _selectedLanguageCode = UiTextCatalog.Instance.CurrentLanguageCode;
     private string _selectedThemeKey = AppThemeCatalog.DefaultThemeKey;
     private string _selectedThemeModeKey = AppThemeCatalog.DefaultModeKey;
-    private IReadOnlyList<AppDisplayOption> _supportedThemes = [];
-    private IReadOnlyList<AppDisplayOption> _supportedThemeModes = [];
+    private readonly ObservableCollection<AppDisplayOption> _supportedThemes = [];
+    private readonly ObservableCollection<AppDisplayOption> _supportedThemeModes = [];
     private bool _canAcknowledgeSelectedBuffer = true;
 
     [ObservableProperty]
@@ -56,6 +56,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     [ObservableProperty]
     private bool _isConnectionEditorOpen;
+
+    [ObservableProperty]
+    private bool _isThemeEditorOpen;
 
     [ObservableProperty]
     private bool _isControlPanelOpen;
@@ -114,9 +117,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public IReadOnlyList<UiLanguageOption> SupportedLanguages => _strings.SupportedLanguages;
 
-    public IReadOnlyList<AppDisplayOption> SupportedThemes => _supportedThemes;
+    public ObservableCollection<AppDisplayOption> SupportedThemes => _supportedThemes;
 
-    public IReadOnlyList<AppDisplayOption> SupportedThemeModes => _supportedThemeModes;
+    public ObservableCollection<AppDisplayOption> SupportedThemeModes => _supportedThemeModes;
 
     public UiLanguageOption? SelectedLanguage
     {
@@ -165,6 +168,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             if (SetProperty(ref _selectedThemeKey, resolved))
             {
                 OnPropertyChanged(nameof(SelectedTheme));
+                OnPropertyChanged(nameof(ThemeSummaryText));
                 ApplyAppearance();
                 SaveSettingsIfReady();
             }
@@ -191,6 +195,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             if (SetProperty(ref _selectedThemeModeKey, resolved))
             {
                 OnPropertyChanged(nameof(SelectedThemeMode));
+                OnPropertyChanged(nameof(ThemeSummaryText));
                 ApplyAppearance();
                 SaveSettingsIfReady();
             }
@@ -262,6 +267,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     public string ConnectionIdentityText => string.IsNullOrWhiteSpace(Username) ? _strings["NoUser"] : Username;
 
     public string TlsModeText => TrustInvalidCertificates ? _strings["InsecureTls"] : _strings["Tls"];
+
+    public string ThemeSummaryText =>
+        $"{SelectedTheme?.DisplayName ?? _strings["ThemeLabel"]} / {SelectedThemeMode?.DisplayName ?? _strings["ThemeModeLabel"]}";
 
     public string CurrentSelectionText => SelectedBuffer?.DisplayName ?? _strings["SelectBufferToStart"];
 
@@ -600,13 +608,37 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     [RelayCommand]
     private void ToggleConnectionEditor()
     {
-        IsConnectionEditorOpen = !IsConnectionEditorOpen;
+        var shouldOpen = !IsConnectionEditorOpen;
+        if (shouldOpen)
+        {
+            IsThemeEditorOpen = false;
+        }
+
+        IsConnectionEditorOpen = shouldOpen;
     }
 
     [RelayCommand]
     private void CloseConnectionEditor()
     {
         IsConnectionEditorOpen = false;
+    }
+
+    [RelayCommand]
+    private void ToggleThemeEditor()
+    {
+        var shouldOpen = !IsThemeEditorOpen;
+        if (shouldOpen)
+        {
+            IsConnectionEditorOpen = false;
+        }
+
+        IsThemeEditorOpen = shouldOpen;
+    }
+
+    [RelayCommand]
+    private void CloseThemeEditor()
+    {
+        IsThemeEditorOpen = false;
     }
 
     public async ValueTask DisposeAsync()
@@ -706,6 +738,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
             if (state == QuasselConnectionState.Error)
             {
+                IsThemeEditorOpen = false;
                 IsConnectionEditorOpen = true;
             }
 
@@ -1114,6 +1147,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(SelectedLanguage));
         OnPropertyChanged(nameof(SelectedTheme));
         OnPropertyChanged(nameof(SelectedThemeMode));
+        OnPropertyChanged(nameof(ThemeSummaryText));
         OnPropertyChanged(nameof(TrayToolTipText));
         OnPropertyChanged(nameof(ConnectionStatusDetailText));
         OnPropertyChanged(nameof(SessionSummaryText));
@@ -1215,16 +1249,54 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     private void RefreshAppearanceOptions()
     {
-        _supportedThemes = AppThemeCatalog.ThemeKeys
-            .Select(key => new AppDisplayOption(key, _strings[AppThemeCatalog.GetThemeDisplayKey(key)]))
-            .ToArray();
+        RefreshDisplayOptions(
+            _supportedThemes,
+            AppThemeCatalog.ThemeKeys,
+            key => _strings[AppThemeCatalog.GetThemeDisplayKey(key)]);
 
-        _supportedThemeModes = AppThemeCatalog.ModeKeys
-            .Select(key => new AppDisplayOption(key, _strings[AppThemeCatalog.GetModeDisplayKey(key)]))
-            .ToArray();
+        RefreshDisplayOptions(
+            _supportedThemeModes,
+            AppThemeCatalog.ModeKeys,
+            key => _strings[AppThemeCatalog.GetModeDisplayKey(key)]);
 
         OnPropertyChanged(nameof(SupportedThemes));
         OnPropertyChanged(nameof(SupportedThemeModes));
+        OnPropertyChanged(nameof(SelectedTheme));
+        OnPropertyChanged(nameof(SelectedThemeMode));
+        OnPropertyChanged(nameof(ThemeSummaryText));
+    }
+
+    private static void RefreshDisplayOptions(
+        ObservableCollection<AppDisplayOption> options,
+        IReadOnlyList<string> keys,
+        Func<string, string> displayNameSelector)
+    {
+        for (var index = 0; index < keys.Count; index++)
+        {
+            var key = keys[index];
+            var displayName = displayNameSelector(key);
+
+            if (index < options.Count)
+            {
+                if (!string.Equals(options[index].Key, key, StringComparison.OrdinalIgnoreCase))
+                {
+                    options[index] = new AppDisplayOption(key, displayName);
+                }
+                else
+                {
+                    options[index].DisplayName = displayName;
+                }
+            }
+            else
+            {
+                options.Add(new AppDisplayOption(key, displayName));
+            }
+        }
+
+        while (options.Count > keys.Count)
+        {
+            options.RemoveAt(options.Count - 1);
+        }
     }
 
     private void ApplyAppearance()
