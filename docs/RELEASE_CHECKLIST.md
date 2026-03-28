@@ -29,8 +29,8 @@ This checklist is meant to keep the next QuasselGlow release predictable and eas
 
 ## Before Tagging
 
-- [ ] Verify the working tree is clean
-- [ ] Review commits included since the previous tag
+- [x] Verify the working tree is clean
+- [x] Review commits included since the previous tag
 - [x] Write release notes for the new version using `.artifacts/releases/vX.Y.Z/RELEASE_NOTES.md` as the target location
 - [x] Confirm the release notes list the main highlights, known gaps, and validation steps
 - [x] If this is the first release after the desktop output rename, mention that the shipped app binary is now `QuasselGlow`
