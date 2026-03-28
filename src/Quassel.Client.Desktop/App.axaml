@@ -1,0 +1,42 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Quassel.Client.Desktop.App"
+             xmlns:local="using:Quassel.Client.Desktop"
+             RequestedThemeVariant="Light">
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+
+    <Application.Resources>
+        <SolidColorBrush x:Key="ShellBg" Color="#FFF8F0"/>
+        <SolidColorBrush x:Key="ShellPanel" Color="#FFFDF9"/>
+        <SolidColorBrush x:Key="ShellPanelMuted" Color="#F3F0E8"/>
+        <SolidColorBrush x:Key="ShellBorder" Color="#D9D6CF"/>
+        <SolidColorBrush x:Key="InkStrong" Color="#1F2937"/>
+        <SolidColorBrush x:Key="InkSoft" Color="#526072"/>
+        <SolidColorBrush x:Key="AccentRust" Color="#D6652F"/>
+        <SolidColorBrush x:Key="AccentTeal" Color="#0F766E"/>
+        <SolidColorBrush x:Key="AccentSky" Color="#DDE9F4"/>
+        <SolidColorBrush x:Key="AccentSand" Color="#F9E8D1"/>
+    </Application.Resources>
+  
+    <Application.Styles>
+        <FluentTheme />
+        <Style Selector="Window">
+            <Setter Property="FontFamily" Value="IBM Plex Sans, Segoe UI, Noto Sans, sans-serif"/>
+            <Setter Property="Background" Value="{StaticResource ShellBg}"/>
+            <Setter Property="Foreground" Value="{StaticResource InkStrong}"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{StaticResource ShellPanel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ShellBorder}"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+    </Application.Styles>
+</Application>

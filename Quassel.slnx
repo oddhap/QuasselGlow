@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Quassel.Client.Application/Quassel.Client.Application.csproj" />
+    <Project Path="src/Quassel.Client.Desktop/Quassel.Client.Desktop.csproj" />
+    <Project Path="src/Quassel.Client.Domain/Quassel.Client.Domain.csproj" />
+    <Project Path="src/Quassel.Client.Infrastructure/Quassel.Client.Infrastructure.csproj" />
+    <Project Path="src/Quassel.Client.Protocol/Quassel.Client.Protocol.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Quassel.Client.Application.Tests/Quassel.Client.Application.Tests.csproj" />
+    <Project Path="tests/Quassel.Client.Protocol.Tests/Quassel.Client.Protocol.Tests.csproj" />
+  </Folder>
+</Solution>
