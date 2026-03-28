@@ -13,6 +13,7 @@ public sealed class QuasselSessionService : IQuasselSessionService
     public event Action<QuasselSessionState>? SessionStateReceived;
     public event Action<QuasselNetworkState>? NetworkStateReceived;
     public event Action<QuasselBufferInfo>? BufferInfoUpdated;
+    public event Action<QuasselChannelState>? ChannelStateReceived;
     public event Action<QuasselChannelTopicUpdate>? ChannelTopicReceived;
     public event Action<QuasselMessage>? MessageReceived;
     public event Action<string>? StatusReceived;
@@ -24,8 +25,9 @@ public sealed class QuasselSessionService : IQuasselSessionService
         _client.SessionStateReceived += HandleSessionStateReceived;
         _client.NetworkStateReceived += state => NetworkStateReceived?.Invoke(state);
         _client.BufferInfoUpdated += HandleBufferInfoUpdated;
+        _client.ChannelStateReceived += state => ChannelStateReceived?.Invoke(state);
         _client.ChannelTopicReceived += topic => ChannelTopicReceived?.Invoke(topic);
-        _client.MessageReceived += message => MessageReceived?.Invoke(message);
+        _client.MessageReceived += HandleMessageReceived;
         _client.StatusReceived += message => StatusReceived?.Invoke(message);
         _client.NetworkRemoved += id => NetworkRemoved?.Invoke(id);
     }
@@ -94,6 +96,18 @@ public sealed class QuasselSessionService : IQuasselSessionService
     {
         BufferInfoUpdated?.Invoke(bufferInfo);
         _ = RequestChannelStateIfNeededAsync(bufferInfo);
+    }
+
+    private void HandleMessageReceived(QuasselMessage message)
+    {
+        MessageReceived?.Invoke(message);
+
+        if (message.BufferInfo.Type == QuasselBufferType.Channel
+            && message.Type.HasFlag(QuasselMessageType.Nick)
+            && !string.IsNullOrWhiteSpace(message.BufferInfo.BufferName))
+        {
+            _ = _client.RequestChannelStateAsync(message.BufferInfo.NetworkId, message.BufferInfo.BufferName);
+        }
     }
 
     private Task RequestChannelStateIfNeededAsync(QuasselBufferInfo bufferInfo)

@@ -23,8 +23,10 @@ public sealed class QuasselCoreClient : IAsyncDisposable
 
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private readonly Dictionary<NetworkId, QuasselNetworkState> _networkStates = new();
+    private readonly Dictionary<string, QuasselChannelState> _channelStates = new(StringComparer.OrdinalIgnoreCase);
     private static readonly string[] SupportedFeatureList = ["ExtendedFeatures", "LongMessageId"];
     private const uint SupportedLegacyFeatures = 0x8000;
+    private const string KnownChannelUserModePriority = "qaohv";
 
     private CancellationTokenSource? _lifetime;
     private TcpClient? _tcpClient;
@@ -36,6 +38,7 @@ public sealed class QuasselCoreClient : IAsyncDisposable
     public event Action<QuasselSessionState>? SessionStateReceived;
     public event Action<QuasselNetworkState>? NetworkStateReceived;
     public event Action<QuasselBufferInfo>? BufferInfoUpdated;
+    public event Action<QuasselChannelState>? ChannelStateReceived;
     public event Action<QuasselChannelTopicUpdate>? ChannelTopicReceived;
     public event Action<QuasselMessage>? MessageReceived;
     public event Action<BufferId, IReadOnlyList<QuasselMessage>>? BacklogReceived;
@@ -357,6 +360,7 @@ public sealed class QuasselCoreClient : IAsyncDisposable
             {
                 var networkId = QtValueHelpers.AsNetworkId(parameters[0]);
                 _networkStates.Remove(networkId);
+                RemoveCachedChannels(networkId);
                 NetworkRemoved?.Invoke(networkId);
                 break;
             }
@@ -420,19 +424,52 @@ public sealed class QuasselCoreClient : IAsyncDisposable
             return;
         }
 
-        string? topic = slotName switch
+        switch (slotName)
         {
-            "setTopic" when parameters.Count > 0 => QtValueHelpers.AsString(parameters[0]),
-            "update" when parameters.Count > 0 => ReadTopicFromVariantMap(parameters[0]),
-            _ => null
-        };
+            case "setTopic" when parameters.Count > 0:
+                UpdateChannelTopic(networkId, channelName, QtValueHelpers.AsString(parameters[0]));
+                return;
 
-        if (topic is null)
-        {
-            return;
+            case "update" when parameters.Count > 0:
+                ApplyChannelUpdate(networkId, channelName, QtValueHelpers.AsMap(parameters[0]));
+                return;
+
+            case "joinIrcUsers" when parameters.Count >= 2:
+                AddOrUpdateChannelUsers(
+                    networkId,
+                    channelName,
+                    QtValueHelpers.AsStringList(parameters[0]),
+                    QtValueHelpers.AsStringList(parameters[1]));
+                return;
+
+            case "part" when parameters.Count > 0:
+                RemoveChannelUser(networkId, channelName, QtValueHelpers.AsString(parameters[0]));
+                return;
+
+            case "setUserModes" when parameters.Count >= 2:
+                SetChannelUserModes(
+                    networkId,
+                    channelName,
+                    QtValueHelpers.AsString(parameters[0]),
+                    QtValueHelpers.AsString(parameters[1]));
+                return;
+
+            case "addUserMode" when parameters.Count >= 2:
+                AddChannelUserMode(
+                    networkId,
+                    channelName,
+                    QtValueHelpers.AsString(parameters[0]),
+                    QtValueHelpers.AsString(parameters[1]));
+                return;
+
+            case "removeUserMode" when parameters.Count >= 2:
+                RemoveChannelUserMode(
+                    networkId,
+                    channelName,
+                    QtValueHelpers.AsString(parameters[0]),
+                    QtValueHelpers.AsString(parameters[1]));
+                return;
         }
-
-        ChannelTopicReceived?.Invoke(new QuasselChannelTopicUpdate(networkId, channelName, topic));
     }
 
     private void HandleIrcChannelInitData(string objectName, IReadOnlyList<object?> values)
@@ -449,7 +486,11 @@ public sealed class QuasselCoreClient : IAsyncDisposable
         }
 
         var topic = QtValueHelpers.AsString(properties.GetValueOrDefault("topic"));
-        ChannelTopicReceived?.Invoke(new QuasselChannelTopicUpdate(networkId, channelName, topic));
+        var users = ParseChannelUsers(properties.TryGetValue("UserModes", out var userModes)
+            ? userModes
+            : properties.GetValueOrDefault("userModes"));
+
+        UpdateChannelState(new QuasselChannelState(networkId, channelName, topic, users));
     }
 
     private static string? ReadTopicFromVariantMap(object? value)
@@ -458,6 +499,199 @@ public sealed class QuasselCoreClient : IAsyncDisposable
         return map.TryGetValue("topic", out var topicValue)
             ? QtValueHelpers.AsString(topicValue)
             : null;
+    }
+
+    private void ApplyChannelUpdate(NetworkId networkId, string channelName, IReadOnlyDictionary<string, object?> properties)
+    {
+        var state = GetOrCreateChannelState(networkId, channelName);
+        var topic = properties.TryGetValue("topic", out var topicValue)
+            ? QtValueHelpers.AsString(topicValue)
+            : state.Topic;
+
+        var users = properties.TryGetValue("UserModes", out var userModesValue)
+            ? ParseChannelUsers(userModesValue)
+            : properties.TryGetValue("userModes", out userModesValue)
+                ? ParseChannelUsers(userModesValue)
+                : state.Users;
+
+        UpdateChannelState(state with { Topic = topic, Users = users });
+    }
+
+    private void UpdateChannelTopic(NetworkId networkId, string channelName, string topic)
+    {
+        var state = GetOrCreateChannelState(networkId, channelName);
+        UpdateChannelState(state with { Topic = topic });
+    }
+
+    private void AddOrUpdateChannelUsers(NetworkId networkId, string channelName, IReadOnlyList<string> nicks, IReadOnlyList<string> modes)
+    {
+        var state = GetOrCreateChannelState(networkId, channelName);
+        var users = state.Users.ToDictionary(user => user.Nick, StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < nicks.Count; index++)
+        {
+            var nick = nicks[index].Trim();
+            if (string.IsNullOrWhiteSpace(nick))
+            {
+                continue;
+            }
+
+            var mode = index < modes.Count ? NormalizeChannelUserModes(modes[index]) : string.Empty;
+            users[nick] = new QuasselChannelUser(nick, mode);
+        }
+
+        UpdateChannelState(state with { Users = users.Values.ToArray() });
+    }
+
+    private void RemoveChannelUser(NetworkId networkId, string channelName, string nick)
+    {
+        if (string.IsNullOrWhiteSpace(nick))
+        {
+            return;
+        }
+
+        var state = GetOrCreateChannelState(networkId, channelName);
+        var trimmedNick = nick.Trim();
+        var users = state.Users
+            .Where(user => !string.Equals(user.Nick, trimmedNick, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        UpdateChannelState(state with { Users = users });
+    }
+
+    private void SetChannelUserModes(NetworkId networkId, string channelName, string nick, string modes)
+    {
+        if (string.IsNullOrWhiteSpace(nick))
+        {
+            return;
+        }
+
+        var state = GetOrCreateChannelState(networkId, channelName);
+        UpdateChannelState(state with
+        {
+            Users = UpsertChannelUser(state.Users, nick.Trim(), NormalizeChannelUserModes(modes))
+        });
+    }
+
+    private void AddChannelUserMode(NetworkId networkId, string channelName, string nick, string mode)
+    {
+        if (string.IsNullOrWhiteSpace(nick) || string.IsNullOrWhiteSpace(mode))
+        {
+            return;
+        }
+
+        var state = GetOrCreateChannelState(networkId, channelName);
+        var trimmedNick = nick.Trim();
+        var existingModes = state.Users
+            .FirstOrDefault(entry => string.Equals(entry.Nick, trimmedNick, StringComparison.OrdinalIgnoreCase))
+            ?.Modes ?? string.Empty;
+
+        UpdateChannelState(state with
+        {
+            Users = UpsertChannelUser(state.Users, trimmedNick, NormalizeChannelUserModes(existingModes + mode.Trim()))
+        });
+    }
+
+    private void RemoveChannelUserMode(NetworkId networkId, string channelName, string nick, string mode)
+    {
+        if (string.IsNullOrWhiteSpace(nick) || string.IsNullOrWhiteSpace(mode))
+        {
+            return;
+        }
+
+        var trimmedNick = nick.Trim();
+        var removalChars = mode.Trim().ToCharArray();
+        var state = GetOrCreateChannelState(networkId, channelName);
+        var users = state.Users
+            .Select(user => string.Equals(user.Nick, trimmedNick, StringComparison.OrdinalIgnoreCase)
+                ? user with
+                {
+                    Modes = NormalizeChannelUserModes(new string(user.Modes.Where(ch => !removalChars.Contains(ch)).ToArray()))
+                }
+                : user)
+            .ToArray();
+
+        UpdateChannelState(state with { Users = users });
+    }
+
+    private void UpdateChannelState(QuasselChannelState state)
+    {
+        var key = BuildChannelKey(state.NetworkId, state.ChannelName);
+        var previousTopic = _channelStates.TryGetValue(key, out var previous)
+            ? previous.Topic
+            : string.Empty;
+
+        _channelStates[key] = state;
+        ChannelStateReceived?.Invoke(state);
+
+        if (!string.Equals(previousTopic, state.Topic, StringComparison.Ordinal))
+        {
+            ChannelTopicReceived?.Invoke(new QuasselChannelTopicUpdate(state.NetworkId, state.ChannelName, state.Topic));
+        }
+    }
+
+    private QuasselChannelState GetOrCreateChannelState(NetworkId networkId, string channelName)
+    {
+        var key = BuildChannelKey(networkId, channelName);
+        return _channelStates.TryGetValue(key, out var state)
+            ? state
+            : new QuasselChannelState(networkId, channelName.Trim(), string.Empty, Array.Empty<QuasselChannelUser>());
+    }
+
+    private static IReadOnlyList<QuasselChannelUser> ParseChannelUsers(object? value)
+    {
+        return QtValueHelpers.AsMap(value)
+            .Select(entry => new QuasselChannelUser(entry.Key, NormalizeChannelUserModes(QtValueHelpers.AsString(entry.Value))))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<QuasselChannelUser> UpsertChannelUser(
+        IReadOnlyList<QuasselChannelUser> users,
+        string nick,
+        string modes)
+    {
+        var updated = false;
+        var nextUsers = users
+            .Select(user =>
+            {
+                if (!string.Equals(user.Nick, nick, StringComparison.OrdinalIgnoreCase))
+                {
+                    return user;
+                }
+
+                updated = true;
+                return user with { Nick = nick, Modes = modes };
+            })
+            .ToList();
+
+        if (!updated)
+        {
+            nextUsers.Add(new QuasselChannelUser(nick, modes));
+        }
+
+        return nextUsers;
+    }
+
+    private static string NormalizeChannelUserModes(string modes)
+    {
+        if (string.IsNullOrWhiteSpace(modes))
+        {
+            return string.Empty;
+        }
+
+        var uniqueModes = modes
+            .Where(ch => !char.IsWhiteSpace(ch))
+            .Distinct()
+            .ToList();
+
+        var orderedKnownModes = uniqueModes
+            .Where(ch => KnownChannelUserModePriority.Contains(char.ToLowerInvariant(ch)))
+            .OrderBy(ch => KnownChannelUserModePriority.IndexOf(char.ToLowerInvariant(ch)));
+
+        var otherModes = uniqueModes
+            .Where(ch => !KnownChannelUserModePriority.Contains(char.ToLowerInvariant(ch)))
+            .OrderBy(char.ToLowerInvariant);
+
+        return string.Concat(orderedKnownModes.Concat(otherModes));
     }
 
     private static bool TryParseChannelObjectName(string objectName, out NetworkId networkId, out string channelName)
@@ -484,6 +718,11 @@ public sealed class QuasselCoreClient : IAsyncDisposable
         networkId = new NetworkId(rawNetworkId);
         channelName = objectName[(separatorIndex + 1)..];
         return networkId.IsValid && !string.IsNullOrWhiteSpace(channelName);
+    }
+
+    private static string BuildChannelKey(NetworkId networkId, string channelName)
+    {
+        return $"{networkId.Value}/{channelName.Trim()}";
     }
 
     private QuasselSessionState ParseSessionState(Dictionary<string, object?> handshake)
@@ -666,6 +905,7 @@ public sealed class QuasselCoreClient : IAsyncDisposable
         }
 
         _networkStates.Clear();
+        _channelStates.Clear();
         _useLongMessageIds = false;
 
         if (_stream is IAsyncDisposable asyncDisposable)
@@ -695,5 +935,17 @@ public sealed class QuasselCoreClient : IAsyncDisposable
     {
         var featureList = QtValueHelpers.AsStringList(handshake.GetValueOrDefault("FeatureList"));
         return featureList.Contains(featureName, StringComparer.Ordinal);
+    }
+
+    private void RemoveCachedChannels(NetworkId networkId)
+    {
+        var keysToRemove = _channelStates.Keys
+            .Where(key => key.StartsWith($"{networkId.Value}/", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        foreach (var key in keysToRemove)
+        {
+            _channelStates.Remove(key);
+        }
     }
 }

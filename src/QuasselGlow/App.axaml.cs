@@ -70,6 +70,26 @@ public partial class App : Avalonia.Application
         UpdateBrush("WindowChromeClosePressedBg", palette.WindowChromeClosePressedBg);
         UpdateBrush("WindowChromeClosePressedFg", palette.WindowChromeClosePressedFg);
         UpdateBrush("BufferPrefixBg", palette.BufferPrefixBg);
+        UpdateBrush("MenuFlyoutPresenterBackground", palette.ShellPanel);
+        UpdateBrush("MenuFlyoutPresenterBorderBrush", palette.ShellBorder);
+        UpdateBrush("MenuFlyoutItemBackground", palette.ShellPanel);
+        UpdateBrush("MenuFlyoutItemForeground", palette.InkStrong);
+        UpdateBrush("MenuFlyoutItemBackgroundPointerOver", palette.AccentSky);
+        UpdateBrush("MenuFlyoutItemForegroundPointerOver", palette.AccentTeal);
+        UpdateBrush("MenuFlyoutItemBackgroundPressed", palette.WindowChromePressedBg);
+        UpdateBrush("MenuFlyoutItemForegroundPressed", palette.AccentTeal);
+        UpdateBrush("MenuFlyoutItemBackgroundDisabled", palette.ShellPanelMuted);
+        UpdateBrush("MenuFlyoutItemForegroundDisabled", palette.InkSoft);
+        UpdateBrush("MenuFlyoutItemKeyboardAcceleratorTextForeground", palette.InkSoft);
+        UpdateBrush("MenuFlyoutItemKeyboardAcceleratorTextForegroundPointerOver", palette.AccentTeal);
+        UpdateBrush("MenuFlyoutItemKeyboardAcceleratorTextForegroundPressed", palette.AccentTeal);
+        UpdateBrush("MenuFlyoutItemKeyboardAcceleratorTextForegroundDisabled", palette.InkSoft);
+        UpdateBrush("MenuFlyoutSubItemChevron", palette.InkSoft);
+        UpdateBrush("MenuFlyoutSubItemChevronPointerOver", palette.AccentTeal);
+        UpdateBrush("MenuFlyoutSubItemChevronPressed", palette.AccentTeal);
+        UpdateBrush("MenuFlyoutSubItemChevronDisabled", palette.InkSoft);
+        UpdateBrush("MenuFlyoutSubItemChevronSubMenuOpened", palette.AccentTeal);
+        UpdateBrush("ContextMenuSeparatorBrush", palette.ShellBorder);
         UpdateBackdropBrush(palette);
     }
 

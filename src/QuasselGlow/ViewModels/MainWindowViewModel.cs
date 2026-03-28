@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -19,7 +21,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly UiTextCatalog _strings = UiTextCatalog.Instance;
     private readonly Dictionary<NetworkId, NetworkItemViewModel> _networksById = new();
     private readonly Dictionary<BufferId, BufferItemViewModel> _buffersById = new();
-    private readonly Dictionary<string, string> _channelTopicsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, QuasselChannelState> _channelStatesByKey = new(StringComparer.OrdinalIgnoreCase);
 
     private QuasselConnectionState _connectionState = QuasselConnectionState.Disconnected;
     private BufferItemViewModel? _selectedBuffer;
@@ -57,6 +59,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     [ObservableProperty]
     private bool _isControlPanelOpen;
+
+    [ObservableProperty]
+    private bool _isUserListPinned;
 
     [ObservableProperty]
     private string _statusText = UiTextCatalog.Instance["StatusDisconnected"];
@@ -98,6 +103,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         _session.SessionStateReceived += OnSessionStateReceived;
         _session.NetworkStateReceived += state => RunOnUiThread(() => UpsertNetwork(state));
         _session.BufferInfoUpdated += info => RunOnUiThread(() => UpsertBuffer(info));
+        _session.ChannelStateReceived += state => RunOnUiThread(() => ApplyChannelState(state));
         _session.ChannelTopicReceived += topic => RunOnUiThread(() => ApplyChannelTopic(topic));
         _session.MessageReceived += message => RunOnUiThread(() => ApplyMessage(message));
         _session.StatusReceived += OnStatusReceived;
@@ -297,6 +303,42 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public string SelectedNickText => string.IsNullOrWhiteSpace(SelectedNetwork?.MyNick) ? "nick" : SelectedNetwork.MyNick;
 
+    public bool SelectedBufferSupportsUserList => SelectedBuffer?.BufferInfo.Type == QuasselBufferType.Channel;
+
+    public IReadOnlyList<ChannelUserViewModel> SelectedChannelUsers => SelectedBuffer?.ChannelUsers ?? [];
+
+    public bool ShowSelectedChannelUsers => SelectedBufferSupportsUserList && SelectedBuffer?.MemberCount > 0;
+
+    public bool ShowSelectedChannelUsersEmptyState => SelectedBufferSupportsUserList && SelectedBuffer?.MemberCount == 0;
+
+    public bool ShowSelectedChannelUsersUnavailable => SelectedBuffer is not null && !SelectedBufferSupportsUserList;
+
+    public SplitViewDisplayMode UserListDisplayMode => IsUserListPinned ? SplitViewDisplayMode.Inline : SplitViewDisplayMode.Overlay;
+
+    public bool UseOverlayDismissForUserList => !IsUserListPinned;
+
+    public string UserListPinButtonText => _strings[IsUserListPinned ? "Unpin" : "Pin"];
+
+    public string UserListStatusText
+    {
+        get
+        {
+            if (SelectedBuffer is null)
+            {
+                return _strings["SelectChannelOrQuery"];
+            }
+
+            if (!SelectedBufferSupportsUserList)
+            {
+                return _strings["UsersOnlyForChannels"];
+            }
+
+            return SelectedBuffer.MemberCount == 0
+                ? _strings["NoUsersLoaded"]
+                : _strings.Format("UsersCountFormat", SelectedBuffer.MemberCount);
+        }
+    }
+
     public string ControlPanelNetworkNameText => SelectedNetwork?.DisplayName ?? _strings["NoneSelected"];
 
     public string ControlPanelServerText =>
@@ -458,6 +500,57 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     }
 
     [RelayCommand]
+    private Task GiveOpToChannelUserAsync(ChannelUserViewModel? user)
+    {
+        return SendModeChangeForChannelUserAsync(user, "+o");
+    }
+
+    [RelayCommand]
+    private Task RemoveOpFromChannelUserAsync(ChannelUserViewModel? user)
+    {
+        return SendModeChangeForChannelUserAsync(user, "-o");
+    }
+
+    [RelayCommand]
+    private Task GiveVoiceToChannelUserAsync(ChannelUserViewModel? user)
+    {
+        return SendModeChangeForChannelUserAsync(user, "+v");
+    }
+
+    [RelayCommand]
+    private Task RemoveVoiceFromChannelUserAsync(ChannelUserViewModel? user)
+    {
+        return SendModeChangeForChannelUserAsync(user, "-v");
+    }
+
+    [RelayCommand]
+    private Task KickChannelUserAsync(ChannelUserViewModel? user)
+    {
+        return SendChannelCommandForUserAsync(user, channelName => $"/kick {channelName} {user!.Nick}");
+    }
+
+    [RelayCommand]
+    private Task BanChannelUserAsync(ChannelUserViewModel? user)
+    {
+        return SendChannelCommandForUserAsync(user, channelName => $"/mode {channelName} +b {BuildNickBanMask(user!.Nick)}");
+    }
+
+    [RelayCommand]
+    private async Task KickBanChannelUserAsync(ChannelUserViewModel? user)
+    {
+        if (!TryGetSelectedChannelBuffer(out var channelBuffer) || user is null)
+        {
+            return;
+        }
+
+        var bufferInfo = channelBuffer;
+        var channelName = bufferInfo.BufferName;
+        var banMask = BuildNickBanMask(user.Nick);
+        await _session.SendInputAsync(bufferInfo, $"/mode {channelName} +b {banMask}").ConfigureAwait(false);
+        await _session.SendInputAsync(bufferInfo, $"/kick {channelName} {user.Nick}").ConfigureAwait(false);
+    }
+
+    [RelayCommand]
     private void SelectBuffer(BufferItemViewModel? buffer)
     {
         SelectedBuffer = buffer;
@@ -467,6 +560,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private void ToggleControlPanel()
     {
         IsControlPanelOpen = !IsControlPanelOpen;
+    }
+
+    [RelayCommand]
+    private void ToggleUserListPinned()
+    {
+        var shouldPin = !IsUserListPinned;
+        IsUserListPinned = shouldPin;
+        if (shouldPin)
+        {
+            IsControlPanelOpen = true;
+        }
     }
 
     [RelayCommand]
@@ -511,6 +615,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     partial void OnIsControlPanelOpenChanged(bool value)
     {
+        SaveSettingsIfReady();
+    }
+
+    partial void OnIsUserListPinnedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(UserListDisplayMode));
+        OnPropertyChanged(nameof(UseOverlayDismissForUserList));
+        OnPropertyChanged(nameof(UserListPinButtonText));
         SaveSettingsIfReady();
     }
 
@@ -579,7 +691,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
                 Networks.Clear();
                 _networksById.Clear();
                 _buffersById.Clear();
-                _channelTopicsByKey.Clear();
+                _channelStatesByKey.Clear();
                 SelectedBuffer = null;
                 OnPropertyChanged(nameof(SessionSummaryText));
             }
@@ -611,7 +723,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             Networks.Clear();
             _networksById.Clear();
             _buffersById.Clear();
-            _channelTopicsByKey.Clear();
+            _channelStatesByKey.Clear();
 
             foreach (var networkId in sessionState.Networks)
             {
@@ -661,7 +773,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         if (_buffersById.TryGetValue(bufferInfo.BufferId, out var existing))
         {
             existing.UpdateInfo(bufferInfo);
-            ApplyCachedTopic(existing);
+            ApplyCachedChannelState(existing);
             if (SelectedBuffer?.BufferInfo.BufferId == bufferInfo.BufferId)
             {
                 RaiseSelectionTextPropertiesChanged();
@@ -673,7 +785,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         var created = new BufferItemViewModel(bufferInfo);
         _buffersById[bufferInfo.BufferId] = created;
         created.PropertyChanged += OnBufferPropertyChanged;
-        ApplyCachedTopic(created);
+        ApplyCachedChannelState(created);
         network.UpsertBuffer(created);
 
         SelectedBuffer ??= PickInitialBuffer();
@@ -714,6 +826,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
         Networks.Remove(network);
         _networksById.Remove(networkId);
+        RemoveCachedChannelStates(networkId);
 
         if (SelectedBuffer is not null && SelectedBuffer.BufferInfo.NetworkId == networkId)
         {
@@ -725,10 +838,35 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(SessionSummaryText));
     }
 
+    private void ApplyChannelState(QuasselChannelState state)
+    {
+        var cacheKey = BuildChannelStateKey(state.NetworkId, state.ChannelName);
+        _channelStatesByKey[cacheKey] = state;
+
+        var matchingBuffer = _buffersById.Values.FirstOrDefault(buffer =>
+            buffer.BufferInfo.Type == QuasselBufferType.Channel
+            && buffer.BufferInfo.NetworkId == state.NetworkId
+            && string.Equals(buffer.BufferInfo.BufferName, state.ChannelName, StringComparison.OrdinalIgnoreCase));
+
+        if (matchingBuffer is null)
+        {
+            return;
+        }
+
+        matchingBuffer.ApplyChannelState(state);
+        if (ReferenceEquals(matchingBuffer, SelectedBuffer))
+        {
+            RaiseSelectionTextPropertiesChanged();
+        }
+    }
+
     private void ApplyChannelTopic(QuasselChannelTopicUpdate topic)
     {
-        var cacheKey = BuildChannelTopicKey(topic.NetworkId, topic.ChannelName);
-        _channelTopicsByKey[cacheKey] = topic.Topic;
+        var cacheKey = BuildChannelStateKey(topic.NetworkId, topic.ChannelName);
+        var existingState = _channelStatesByKey.TryGetValue(cacheKey, out var cachedState)
+            ? cachedState
+            : new QuasselChannelState(topic.NetworkId, topic.ChannelName, string.Empty, Array.Empty<QuasselChannelUser>());
+        _channelStatesByKey[cacheKey] = existingState with { Topic = topic.Topic };
 
         var matchingBuffer = _buffersById.Values.FirstOrDefault(buffer =>
             buffer.BufferInfo.Type == QuasselBufferType.Channel
@@ -781,6 +919,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         TrustInvalidCertificates = settings.TrustInvalidCertificates;
         RememberLogin = settings.RememberLogin;
         IsControlPanelOpen = settings.IsControlPanelOpen;
+        IsUserListPinned = settings.IsUserListPinned;
         SelectedThemeKey = settings.ThemeKey;
         SelectedThemeModeKey = settings.ThemeModeKey;
         MinimizeToTrayEnabled = settings.MinimizeToTray;
@@ -796,6 +935,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             TrustInvalidCertificates,
             RememberLogin,
             IsControlPanelOpen,
+            IsUserListPinned,
             SelectedLanguageCode,
             SelectedThemeKey,
             SelectedThemeModeKey,
@@ -887,6 +1027,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(ShowSelectedBufferSubtitle));
         OnPropertyChanged(nameof(SelectedNetworkStatusText));
         OnPropertyChanged(nameof(SelectedNickText));
+        OnPropertyChanged(nameof(SelectedBufferSupportsUserList));
+        OnPropertyChanged(nameof(SelectedChannelUsers));
+        OnPropertyChanged(nameof(ShowSelectedChannelUsers));
+        OnPropertyChanged(nameof(ShowSelectedChannelUsersEmptyState));
+        OnPropertyChanged(nameof(ShowSelectedChannelUsersUnavailable));
+        OnPropertyChanged(nameof(UserListDisplayMode));
+        OnPropertyChanged(nameof(UseOverlayDismissForUserList));
+        OnPropertyChanged(nameof(UserListPinButtonText));
+        OnPropertyChanged(nameof(UserListStatusText));
         OnPropertyChanged(nameof(ControlPanelNetworkNameText));
         OnPropertyChanged(nameof(ControlPanelServerText));
         OnPropertyChanged(nameof(ControlPanelNickText));
@@ -912,6 +1061,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(ShowSelectedBufferSubtitle));
         OnPropertyChanged(nameof(SelectedNetworkStatusText));
         OnPropertyChanged(nameof(SelectedNickText));
+        OnPropertyChanged(nameof(SelectedBufferSupportsUserList));
+        OnPropertyChanged(nameof(SelectedChannelUsers));
+        OnPropertyChanged(nameof(ShowSelectedChannelUsers));
+        OnPropertyChanged(nameof(ShowSelectedChannelUsersEmptyState));
+        OnPropertyChanged(nameof(ShowSelectedChannelUsersUnavailable));
+        OnPropertyChanged(nameof(UserListStatusText));
         OnPropertyChanged(nameof(ControlPanelNetworkNameText));
         OnPropertyChanged(nameof(ControlPanelServerText));
         OnPropertyChanged(nameof(ControlPanelNickText));
@@ -964,6 +1119,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             && e.PropertyName is nameof(BufferItemViewModel.DisplayName)
                 or nameof(BufferItemViewModel.LastMessagePreview)
                 or nameof(BufferItemViewModel.ChannelTopic)
+                or nameof(BufferItemViewModel.MemberCount)
                 or nameof(BufferItemViewModel.UnreadCount)
                 or nameof(BufferItemViewModel.HasMentionAlert)
                 or nameof(BufferItemViewModel.HasPrivateMessageAlert))
@@ -990,18 +1146,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     private void RefreshAppearanceOptions()
     {
-        _supportedThemes =
-        [
-            new AppDisplayOption("glow", _strings["ThemeGlow"]),
-            new AppDisplayOption("tide", _strings["ThemeTide"]),
-            new AppDisplayOption("ember", _strings["ThemeEmber"])
-        ];
+        _supportedThemes = AppThemeCatalog.ThemeKeys
+            .Select(key => new AppDisplayOption(key, _strings[AppThemeCatalog.GetThemeDisplayKey(key)]))
+            .ToArray();
 
-        _supportedThemeModes =
-        [
-            new AppDisplayOption("light", _strings["ThemeModeLight"]),
-            new AppDisplayOption("dark", _strings["ThemeModeDark"])
-        ];
+        _supportedThemeModes = AppThemeCatalog.ModeKeys
+            .Select(key => new AppDisplayOption(key, _strings[AppThemeCatalog.GetModeDisplayKey(key)]))
+            .ToArray();
 
         OnPropertyChanged(nameof(SupportedThemes));
         OnPropertyChanged(nameof(SupportedThemeModes));
@@ -1037,22 +1188,69 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         Dispatcher.UIThread.Post(action);
     }
 
-    private void ApplyCachedTopic(BufferItemViewModel buffer)
+    private void ApplyCachedChannelState(BufferItemViewModel buffer)
     {
         if (buffer.BufferInfo.Type != QuasselBufferType.Channel)
         {
             return;
         }
 
-        var cacheKey = BuildChannelTopicKey(buffer.BufferInfo.NetworkId, buffer.BufferInfo.BufferName);
-        if (_channelTopicsByKey.TryGetValue(cacheKey, out var topic))
+        var cacheKey = BuildChannelStateKey(buffer.BufferInfo.NetworkId, buffer.BufferInfo.BufferName);
+        if (_channelStatesByKey.TryGetValue(cacheKey, out var state))
         {
-            buffer.SetChannelTopic(topic);
+            buffer.ApplyChannelState(state);
         }
     }
 
-    private static string BuildChannelTopicKey(NetworkId networkId, string channelName)
+    private void RemoveCachedChannelStates(NetworkId networkId)
+    {
+        var keysToRemove = _channelStatesByKey.Keys
+            .Where(key => key.StartsWith($"{networkId.Value}/", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        foreach (var key in keysToRemove)
+        {
+            _channelStatesByKey.Remove(key);
+        }
+    }
+
+    private static string BuildChannelStateKey(NetworkId networkId, string channelName)
     {
         return $"{networkId.Value}/{channelName.Trim()}";
+    }
+
+    private Task SendModeChangeForChannelUserAsync(ChannelUserViewModel? user, string modeChange)
+    {
+        return SendChannelCommandForUserAsync(user, channelName => $"/mode {channelName} {modeChange} {user!.Nick}");
+    }
+
+    private Task SendChannelCommandForUserAsync(ChannelUserViewModel? user, Func<string, string> commandFactory)
+    {
+        if (!TryGetSelectedChannelBuffer(out var channelBuffer) || user is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var bufferInfo = channelBuffer;
+        var commandText = commandFactory(bufferInfo.BufferName);
+        return _session.SendInputAsync(bufferInfo, commandText);
+    }
+
+    private bool TryGetSelectedChannelBuffer([NotNullWhen(true)] out QuasselBufferInfo? channelBuffer)
+    {
+        if (SelectedBuffer?.BufferInfo.Type == QuasselBufferType.Channel
+            && !string.IsNullOrWhiteSpace(SelectedBuffer.BufferInfo.BufferName))
+        {
+            channelBuffer = SelectedBuffer.BufferInfo;
+            return true;
+        }
+
+        channelBuffer = null;
+        return false;
+    }
+
+    private static string BuildNickBanMask(string nick)
+    {
+        return $"{nick.Trim()}!*@*";
     }
 }

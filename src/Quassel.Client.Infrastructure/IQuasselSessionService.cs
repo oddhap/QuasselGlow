@@ -8,6 +8,7 @@ public interface IQuasselSessionService : IAsyncDisposable
     event Action<QuasselSessionState>? SessionStateReceived;
     event Action<QuasselNetworkState>? NetworkStateReceived;
     event Action<QuasselBufferInfo>? BufferInfoUpdated;
+    event Action<QuasselChannelState>? ChannelStateReceived;
     event Action<QuasselChannelTopicUpdate>? ChannelTopicReceived;
     event Action<QuasselMessage>? MessageReceived;
     event Action<string>? StatusReceived;

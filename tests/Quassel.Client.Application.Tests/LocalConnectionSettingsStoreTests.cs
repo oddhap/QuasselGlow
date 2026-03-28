@@ -21,6 +21,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             TrustInvalidCertificates: true,
             RememberLogin: true,
             IsControlPanelOpen: true,
+            IsUserListPinned: true,
             LanguageCode: "nb",
             ThemeKey: "ember",
             ThemeModeKey: "dark",
@@ -36,6 +37,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.Equal(expected.TrustInvalidCertificates, actual.TrustInvalidCertificates);
         Assert.True(actual.RememberLogin);
         Assert.True(actual.IsControlPanelOpen);
+        Assert.True(actual.IsUserListPinned);
         Assert.Equal(expected.LanguageCode, actual.LanguageCode);
         Assert.Equal(expected.ThemeKey, actual.ThemeKey);
         Assert.Equal(expected.ThemeModeKey, actual.ThemeModeKey);
@@ -57,6 +59,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             TrustInvalidCertificates: true,
             RememberLogin: false,
             IsControlPanelOpen: false,
+            IsUserListPinned: false,
             LanguageCode: "en_US",
             ThemeKey: "tide",
             ThemeModeKey: "light",
@@ -69,6 +72,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.True(actual.TrustInvalidCertificates);
         Assert.False(actual.RememberLogin);
         Assert.False(actual.IsControlPanelOpen);
+        Assert.False(actual.IsUserListPinned);
         Assert.Equal("en_US", actual.LanguageCode);
         Assert.Equal("tide", actual.ThemeKey);
         Assert.Equal("light", actual.ThemeModeKey);

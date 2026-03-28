@@ -1,4 +1,6 @@
+using Avalonia.Controls;
 using QuasselGlow.ViewModels;
+using QuasselGlow.Appearance;
 using Quassel.Client.Domain;
 using Quassel.Client.Infrastructure;
 
@@ -127,6 +129,115 @@ public sealed class MainWindowViewModelTests
         Assert.False(viewModel.ShowSelectedBufferSubtitle);
     }
 
+    [Fact]
+    public void SupportedThemes_StayInSyncWithThemeCatalog()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        Assert.Equal(AppThemeCatalog.ThemeKeys, viewModel.SupportedThemes.Select(option => option.Key));
+        Assert.Equal(AppThemeCatalog.ModeKeys, viewModel.SupportedThemeModes.Select(option => option.Key));
+    }
+
+    [Fact]
+    public void ToggleUserListPinned_OpensPanePersistsSettingAndSwitchesDisplayMode()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        Assert.False(viewModel.IsControlPanelOpen);
+        Assert.False(viewModel.IsUserListPinned);
+        Assert.Equal(SplitViewDisplayMode.Overlay, viewModel.UserListDisplayMode);
+        Assert.True(viewModel.UseOverlayDismissForUserList);
+        Assert.Equal(viewModel.Strings["Pin"], viewModel.UserListPinButtonText);
+
+        viewModel.ToggleUserListPinnedCommand.Execute(null);
+
+        var pinnedSettings = settings.Load();
+        Assert.True(viewModel.IsControlPanelOpen);
+        Assert.True(viewModel.IsUserListPinned);
+        Assert.Equal(SplitViewDisplayMode.Inline, viewModel.UserListDisplayMode);
+        Assert.False(viewModel.UseOverlayDismissForUserList);
+        Assert.Equal(viewModel.Strings["Unpin"], viewModel.UserListPinButtonText);
+        Assert.True(pinnedSettings.IsControlPanelOpen);
+        Assert.True(pinnedSettings.IsUserListPinned);
+
+        viewModel.ToggleUserListPinnedCommand.Execute(null);
+
+        var unpinnedSettings = settings.Load();
+        Assert.False(viewModel.IsUserListPinned);
+        Assert.Equal(SplitViewDisplayMode.Overlay, viewModel.UserListDisplayMode);
+        Assert.True(viewModel.UseOverlayDismissForUserList);
+        Assert.Equal(viewModel.Strings["Pin"], viewModel.UserListPinButtonText);
+        Assert.True(unpinnedSettings.IsControlPanelOpen);
+        Assert.False(unpinnedSettings.IsUserListPinned);
+    }
+
+    [Fact]
+    public void ChannelStateReceived_PopulatesSortedChannelUsers()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(5), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
+        session.EmitChannelState(new QuasselChannelState(
+            new NetworkId(1),
+            "#quassel",
+            "Current topic",
+            [
+                new QuasselChannelUser("zoe", ""),
+                new QuasselChannelUser("bob", "v"),
+                new QuasselChannelUser("alice", "o")
+            ]));
+
+        Assert.Equal("Current topic", viewModel.SelectedBufferSubtitleText);
+        Assert.True(viewModel.ShowSelectedChannelUsers);
+        Assert.Equal(["alice", "bob", "zoe"], viewModel.SelectedChannelUsers.Select(user => user.Nick));
+        Assert.Equal("@", viewModel.SelectedChannelUsers[0].Prefix);
+        Assert.Equal("+", viewModel.SelectedChannelUsers[1].Prefix);
+    }
+
+    [Fact]
+    public async Task GiveOpToChannelUser_SendsModeCommandToSelectedChannel()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(6), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
+
+        await viewModel.GiveOpToChannelUserCommand.ExecuteAsync(new ChannelUserViewModel(new QuasselChannelUser("bob", string.Empty)));
+
+        Assert.Single(session.SentInputs);
+        Assert.Equal(channelBuffer.BufferId, session.SentInputs[0].bufferInfo.BufferId);
+        Assert.Equal("/mode #quassel +o bob", session.SentInputs[0].text);
+    }
+
+    [Fact]
+    public async Task KickBanChannelUser_SendsBanThenKickCommands()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(7), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
+
+        await viewModel.KickBanChannelUserCommand.ExecuteAsync(new ChannelUserViewModel(new QuasselChannelUser("zoe", string.Empty)));
+
+        Assert.Equal(2, session.SentInputs.Count);
+        Assert.Equal("/mode #quassel +b zoe!*@*", session.SentInputs[0].text);
+        Assert.Equal("/kick #quassel zoe", session.SentInputs[1].text);
+    }
+
     private sealed class FakeSettingsStore(StoredConnectionSettings settings) : IConnectionSettingsStore
     {
         private StoredConnectionSettings _settings = settings;
@@ -145,16 +256,22 @@ public sealed class MainWindowViewModelTests
         public event Action<QuasselSessionState>? SessionStateReceived;
         public event Action<QuasselNetworkState>? NetworkStateReceived;
         public event Action<QuasselBufferInfo>? BufferInfoUpdated;
+        public event Action<QuasselChannelState>? ChannelStateReceived;
         public event Action<QuasselChannelTopicUpdate>? ChannelTopicReceived;
         public event Action<QuasselMessage>? MessageReceived;
         public event Action<string>? StatusReceived;
         public event Action<NetworkId>? NetworkRemoved;
 
         public List<(QuasselBufferInfo bufferInfo, int amount)> BacklogRequests { get; } = [];
+        public List<(QuasselBufferInfo bufferInfo, string text)> SentInputs { get; } = [];
 
         public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task DisconnectAsync() => Task.CompletedTask;
-        public Task SendInputAsync(QuasselBufferInfo bufferInfo, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task SendInputAsync(QuasselBufferInfo bufferInfo, string text, CancellationToken cancellationToken = default)
+        {
+            SentInputs.Add((bufferInfo, text));
+            return Task.CompletedTask;
+        }
 
         public Task EnsureBacklogAsync(QuasselBufferInfo bufferInfo, int amount = 120, CancellationToken cancellationToken = default)
         {
@@ -169,6 +286,7 @@ public sealed class MainWindowViewModelTests
         public void EmitStatus(string message) => StatusReceived?.Invoke(message);
         public void EmitNetworkState(QuasselNetworkState state) => NetworkStateReceived?.Invoke(state);
         public void EmitBufferInfo(QuasselBufferInfo bufferInfo) => BufferInfoUpdated?.Invoke(bufferInfo);
+        public void EmitChannelState(QuasselChannelState state) => ChannelStateReceived?.Invoke(state);
         public void EmitChannelTopic(QuasselChannelTopicUpdate topic) => ChannelTopicReceived?.Invoke(topic);
         public void EmitMessage(QuasselMessage message) => MessageReceived?.Invoke(message);
         public void EmitNetworkRemoved(NetworkId networkId) => NetworkRemoved?.Invoke(networkId);

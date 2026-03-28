@@ -65,6 +65,7 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 persisted.TrustInvalidCertificates,
                 persisted.RememberLogin,
                 persisted.IsControlPanelOpen,
+                persisted.IsUserListPinned,
                 string.IsNullOrWhiteSpace(persisted.LanguageCode) ? string.Empty : persisted.LanguageCode.Trim(),
                 string.IsNullOrWhiteSpace(persisted.ThemeKey) ? string.Empty : persisted.ThemeKey.Trim(),
                 string.IsNullOrWhiteSpace(persisted.ThemeModeKey) ? string.Empty : persisted.ThemeModeKey.Trim(),
@@ -97,6 +98,7 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 TrustInvalidCertificates = settings.TrustInvalidCertificates,
                 RememberLogin = settings.RememberLogin,
                 IsControlPanelOpen = settings.IsControlPanelOpen,
+                IsUserListPinned = settings.IsUserListPinned,
                 LanguageCode = string.IsNullOrWhiteSpace(settings.LanguageCode) ? string.Empty : settings.LanguageCode.Trim(),
                 ThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? string.Empty : settings.ThemeKey.Trim(),
                 ThemeModeKey = string.IsNullOrWhiteSpace(settings.ThemeModeKey) ? string.Empty : settings.ThemeModeKey.Trim(),
@@ -200,6 +202,7 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
         public bool TrustInvalidCertificates { get; init; }
         public bool RememberLogin { get; init; }
         public bool IsControlPanelOpen { get; init; }
+        public bool IsUserListPinned { get; init; }
         public string LanguageCode { get; init; } = string.Empty;
         public string ThemeKey { get; init; } = string.Empty;
         public string ThemeModeKey { get; init; } = string.Empty;

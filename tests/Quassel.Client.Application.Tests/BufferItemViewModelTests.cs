@@ -98,6 +98,29 @@ public sealed class BufferItemViewModelTests
         Assert.Equal("Topic line", viewModel.SidebarSecondaryText);
     }
 
+    [Fact]
+    public void ApplyChannelState_SortsUsersByStatusAndNick()
+    {
+        var bufferInfo = new QuasselBufferInfo(new BufferId(8), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var viewModel = new BufferItemViewModel(bufferInfo);
+
+        viewModel.ApplyChannelState(new QuasselChannelState(
+            new NetworkId(1),
+            "#quassel",
+            "Topic line",
+            [
+                new QuasselChannelUser("zoe", ""),
+                new QuasselChannelUser("bob", "v"),
+                new QuasselChannelUser("alice", "o")
+            ]));
+
+        Assert.Equal("Topic line", viewModel.ChannelTopic);
+        Assert.Equal(3, viewModel.MemberCount);
+        Assert.Equal(["alice", "bob", "zoe"], viewModel.ChannelUsers.Select(user => user.Nick));
+        Assert.Equal("@", viewModel.ChannelUsers[0].Prefix);
+        Assert.Equal("+", viewModel.ChannelUsers[1].Prefix);
+    }
+
     private static QuasselMessage CreateMessage(
         QuasselBufferInfo bufferInfo,
         MsgId messageId,

@@ -43,9 +43,12 @@ public sealed partial class BufferItemViewModel : ViewModelBase
 
     public QuasselBufferInfo BufferInfo { get; private set; }
     public ObservableCollection<MessageItemViewModel> Messages { get; } = [];
+    public ObservableCollection<ChannelUserViewModel> ChannelUsers { get; } = [];
     public bool AcceptsInput => BufferInfo.AcceptsInput;
     public bool HasUnread => UnreadCount > 0;
     public bool HasPriorityAlert => HasMentionAlert || HasPrivateMessageAlert;
+    public int MemberCount => ChannelUsers.Count;
+    public bool HasChannelUsers => MemberCount > 0;
     public string SidebarSecondaryText => BufferInfo.Type switch
     {
         QuasselBufferType.Query => string.Empty,
@@ -164,6 +167,34 @@ public sealed partial class BufferItemViewModel : ViewModelBase
     {
         var cleanedTopic = IrcFormattingCleaner.Clean(topic).Trim();
         ChannelTopic = cleanedTopic;
+    }
+
+    public void ApplyChannelState(QuasselChannelState state)
+    {
+        if (BufferInfo.Type != QuasselBufferType.Channel)
+        {
+            return;
+        }
+
+        SetChannelTopic(state.Topic);
+        ReplaceChannelUsers(state.Users);
+    }
+
+    private void ReplaceChannelUsers(IReadOnlyList<QuasselChannelUser> users)
+    {
+        var sortedUsers = users
+            .Select(user => new ChannelUserViewModel(user))
+            .OrderBy(user => user, Comparer<ChannelUserViewModel>.Create(ChannelUserViewModel.Compare))
+            .ToArray();
+
+        ChannelUsers.Clear();
+        foreach (var user in sortedUsers)
+        {
+            ChannelUsers.Add(user);
+        }
+
+        OnPropertyChanged(nameof(MemberCount));
+        OnPropertyChanged(nameof(HasChannelUsers));
     }
 
     private static string ExtractTopicFromMessageContents(string contents)
