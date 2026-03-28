@@ -1,7 +1,7 @@
 ﻿using Avalonia;
 using System;
 
-namespace Quassel.Client.Desktop;
+namespace QuasselGlow;
 
 sealed class Program
 {

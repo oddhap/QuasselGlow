@@ -3,8 +3,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:primitives="clr-namespace:Avalonia.Controls.Primitives;assembly=Avalonia.Controls"
-        xmlns:vm="using:Quassel.Client.Desktop.ViewModels"
-        x:Class="Quassel.Client.Desktop.Views.MainWindow"
+        xmlns:vm="using:QuasselGlow.ViewModels"
+        x:Class="QuasselGlow.Views.MainWindow"
         x:Name="RootWindow"
         x:DataType="vm:MainWindowViewModel"
         x:CompileBindings="False"
@@ -51,31 +51,31 @@
             <Setter Property="BorderThickness" Value="1" />
         </Style>
 
-        <Style Selector="Button.bufferButton.highlight">
+        <Style Selector="Button.bufferButton.priority">
             <Setter Property="Background" Value="{StaticResource AccentSand}" />
         </Style>
 
         <Style Selector="Border.messageRow">
-            <Setter Property="Background" Value="#FFFDF9" />
+            <Setter Property="Background" Value="{StaticResource MessageRowBg}" />
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="10,11,10,9" />
-            <Setter Property="BorderBrush" Value="#ECE7DF" />
+            <Setter Property="BorderBrush" Value="{StaticResource MessageRowBorder}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Margin" Value="0" />
         </Style>
 
         <Style Selector="Border.messageRow.self">
-            <Setter Property="Background" Value="#F4FBF8" />
-            <Setter Property="BorderBrush" Value="#A7D9C3" />
+            <Setter Property="Background" Value="{StaticResource MessageRowSelfBg}" />
+            <Setter Property="BorderBrush" Value="{StaticResource MessageRowSelfBorder}" />
         </Style>
 
         <Style Selector="Border.messageRow.highlight">
-            <Setter Property="Background" Value="#FFF2D8" />
-            <Setter Property="BorderBrush" Value="#E7B978" />
+            <Setter Property="Background" Value="{StaticResource MessageRowHighlightBg}" />
+            <Setter Property="BorderBrush" Value="{StaticResource MessageRowHighlightBorder}" />
         </Style>
 
         <Style Selector="Border.messageRow.status">
-            <Setter Property="Background" Value="#F3F0E8" />
+            <Setter Property="Background" Value="{StaticResource MessageRowStatusBg}" />
         </Style>
 
         <Style Selector="Button.infoToggle">
@@ -161,7 +161,7 @@
         </Style>
 
         <Style Selector="SelectableTextBlock.messageText">
-            <Setter Property="SelectionBrush" Value="#6BD6ECE8" />
+            <Setter Property="SelectionBrush" Value="{StaticResource ComposerSelection}" />
             <Setter Property="SelectionForegroundBrush" Value="{StaticResource InkStrong}" />
         </Style>
 
@@ -177,32 +177,32 @@
         </Style>
 
         <Style Selector="Button.windowChrome:pointerover">
-            <Setter Property="Background" Value="#F6F1E9" />
+            <Setter Property="Background" Value="{StaticResource WindowChromeHoverBg}" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="Foreground" Value="{StaticResource InkStrong}" />
         </Style>
 
         <Style Selector="Button.windowChrome:pressed">
-            <Setter Property="Background" Value="#EEE4D7" />
+            <Setter Property="Background" Value="{StaticResource WindowChromePressedBg}" />
             <Setter Property="BorderBrush" Value="Transparent" />
         </Style>
 
         <Style Selector="Button.windowChrome.close">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="Foreground" Value="#9D7563" />
+            <Setter Property="Foreground" Value="{StaticResource WindowChromeCloseFg}" />
         </Style>
 
         <Style Selector="Button.windowChrome.close:pointerover">
-            <Setter Property="Background" Value="#F7E8E0" />
+            <Setter Property="Background" Value="{StaticResource WindowChromeCloseHoverBg}" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="Foreground" Value="#8B5438" />
+            <Setter Property="Foreground" Value="{StaticResource WindowChromeCloseHoverFg}" />
         </Style>
 
         <Style Selector="Button.windowChrome.close:pressed">
-            <Setter Property="Background" Value="#EEDACF" />
+            <Setter Property="Background" Value="{StaticResource WindowChromeClosePressedBg}" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="Foreground" Value="#74412A" />
+            <Setter Property="Foreground" Value="{StaticResource WindowChromeClosePressedFg}" />
         </Style>
 
         <Style Selector="Path.windowChromeIcon">
@@ -213,15 +213,8 @@
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,Auto,*,Auto">
-        <Border Grid.RowSpan="4">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#FFF8F0" Offset="0" />
-                    <GradientStop Color="#F8FBFF" Offset="0.55" />
-                    <GradientStop Color="#FFF1E6" Offset="1" />
-                </LinearGradientBrush>
-            </Border.Background>
-        </Border>
+        <Border Grid.RowSpan="4"
+                Background="{StaticResource ShellBackdropBrush}" />
 
         <Border Grid.Row="0"
                 Classes="titleBarShell"
@@ -348,7 +341,7 @@
                             Background="{Binding ConnectionBrush}" />
                     <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="2">
                         <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding CurrentSelectionText}"
+                        <TextBlock Text="{Binding ConnectionStatusDetailText}"
                                    Foreground="{StaticResource InkSoft}" />
                     </StackPanel>
                     <Border Grid.Column="2"
@@ -374,7 +367,7 @@
                             <TextBlock Text="{Binding Strings[Connection]}"
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource InkStrong}" />
-                            <TextBlock Text="{Binding StatusText}"
+                            <TextBlock Text="{Binding SessionSummaryText}"
                                        Foreground="{StaticResource InkSoft}" />
                         </StackPanel>
 
@@ -422,7 +415,7 @@
                                       Placement="BottomEdgeAlignedRight"
                                       VerticalOffset="12">
                         <Border Classes="drawerShell"
-                                Width="420"
+                                Width="500"
                                 Padding="18">
                             <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="14">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
@@ -441,7 +434,7 @@
                                             Content="{Binding Strings[Close]}" />
                                 </Grid>
 
-                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
+                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
                                     <Grid ColumnDefinitions="*,96" ColumnSpacing="10">
                                         <TextBox Watermark="{Binding Strings[Host]}"
                                                  Text="{Binding Host}" />
@@ -468,18 +461,41 @@
                                                   ItemsSource="{Binding SupportedLanguages}"
                                                   SelectedItem="{Binding SelectedLanguage}" />
                                     </Grid>
+
+                                    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="12" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Strings[ThemeLabel]}"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource InkSoft}" />
+                                        <ComboBox Grid.Column="1"
+                                                  MinWidth="150"
+                                                  ItemsSource="{Binding SupportedThemes}"
+                                                  SelectedItem="{Binding SelectedTheme}" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Strings[ThemeModeLabel]}"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource InkSoft}" />
+                                        <ComboBox Grid.Column="3"
+                                                  MinWidth="120"
+                                                  ItemsSource="{Binding SupportedThemeModes}"
+                                                  SelectedItem="{Binding SelectedThemeMode}" />
+                                    </Grid>
                                 </Grid>
 
                                 <Grid Grid.Row="2" RowDefinitions="Auto,Auto" RowSpacing="12">
-                                    <StackPanel Orientation="Horizontal"
-                                                Spacing="12"
+                                    <StackPanel Spacing="8"
                                                 VerticalAlignment="Center">
-                                        <CheckBox VerticalAlignment="Center"
-                                                  Content="{Binding Strings[RememberLogin]}"
-                                                  IsChecked="{Binding RememberLogin}" />
-                                        <CheckBox VerticalAlignment="Center"
-                                                  Content="{Binding Strings[AllowInsecureTls]}"
-                                                  IsChecked="{Binding TrustInvalidCertificates}" />
+                                        <StackPanel Orientation="Horizontal"
+                                                    Spacing="12"
+                                                    VerticalAlignment="Center">
+                                            <CheckBox VerticalAlignment="Center"
+                                                      Content="{Binding Strings[RememberLogin]}"
+                                                      IsChecked="{Binding RememberLogin}" />
+                                            <CheckBox VerticalAlignment="Center"
+                                                      Content="{Binding Strings[AllowInsecureTls]}"
+                                                      IsChecked="{Binding TrustInvalidCertificates}" />
+                                        </StackPanel>
+                                        <CheckBox Content="{Binding Strings[MinimizeToTray]}"
+                                                  IsChecked="{Binding MinimizeToTrayEnabled}" />
                                     </StackPanel>
 
                                     <StackPanel Grid.Row="1"
@@ -550,7 +566,7 @@
                                                     <DataTemplate x:DataType="vm:BufferItemViewModel">
                                                         <Button Classes="bufferButton"
                                                                 Classes.selected="{Binding IsSelected}"
-                                                                Classes.highlight="{Binding HasHighlight}"
+                                                                Classes.priority="{Binding HasPriorityAlert}"
                                                                 Command="{Binding #RootWindow.DataContext.SelectBufferCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -558,7 +574,7 @@
                                                                         Height="24"
                                                                         VerticalAlignment="Center"
                                                                         CornerRadius="12"
-                                                                        Background="#E8EDF4">
+                                                                        Background="{StaticResource BufferPrefixBg}">
                                                                     <TextBlock HorizontalAlignment="Center"
                                                                                VerticalAlignment="Center"
                                                                                Text="{Binding Prefix}"
@@ -566,18 +582,42 @@
                                                                 </Border>
                                                                 <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="1">
                                                                     <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                                    <TextBlock Text="{Binding LastMessagePreview}"
+                                                                    <TextBlock Text="{Binding SidebarSecondaryText}"
                                                                                FontSize="12"
-                                                                               Foreground="{StaticResource InkSoft}" />
+                                                                               Foreground="{StaticResource InkSoft}"
+                                                                               IsVisible="{Binding HasSidebarSecondaryText}" />
                                                                 </StackPanel>
-                                                                <Border Grid.Column="2"
-                                                                        VerticalAlignment="Center"
-                                                                        Padding="8,4"
-                                                                        CornerRadius="999"
-                                                                        Background="{StaticResource AccentSand}"
-                                                                        IsVisible="{Binding HasUnread}">
-                                                                    <TextBlock Text="{Binding UnreadCount}" />
-                                                                </Border>
+                                                                <StackPanel Grid.Column="2"
+                                                                            Orientation="Horizontal"
+                                                                            Spacing="6"
+                                                                            VerticalAlignment="Center">
+                                                                    <Border Padding="8,4"
+                                                                            CornerRadius="999"
+                                                                            Background="{StaticResource AccentRust}"
+                                                                            IsVisible="{Binding HasPrivateMessageAlert}">
+                                                                        <TextBlock Text="PM"
+                                                                                   FontSize="11"
+                                                                                   FontWeight="SemiBold"
+                                                                                   Foreground="White" />
+                                                                    </Border>
+                                                                    <Border Padding="8,4"
+                                                                            CornerRadius="999"
+                                                                            Background="{StaticResource AccentSky}"
+                                                                            BorderBrush="{StaticResource AccentTeal}"
+                                                                            BorderThickness="1"
+                                                                            IsVisible="{Binding HasMentionAlert}">
+                                                                        <TextBlock Text="@"
+                                                                                   FontSize="11"
+                                                                                   FontWeight="SemiBold"
+                                                                                   Foreground="{StaticResource AccentTeal}" />
+                                                                    </Border>
+                                                                    <Border Padding="8,4"
+                                                                            CornerRadius="999"
+                                                                            Background="{StaticResource AccentSand}"
+                                                                            IsVisible="{Binding HasUnread}">
+                                                                        <TextBlock Text="{Binding UnreadCount}" />
+                                                                    </Border>
+                                                                </StackPanel>
                                                             </Grid>
                                                         </Button>
                                                     </DataTemplate>
@@ -608,8 +648,10 @@
                                         <TextBlock Text="{Binding SelectedBufferHeadingText}"
                                                    FontSize="22"
                                                    FontWeight="Bold" />
-                                        <TextBlock Text="{Binding SelectedNetworkStatusText}"
-                                                   Foreground="{StaticResource InkSoft}" />
+                                        <TextBlock Text="{Binding SelectedBufferSubtitleText}"
+                                                   Foreground="{StaticResource InkSoft}"
+                                                   IsVisible="{Binding ShowSelectedBufferSubtitle}"
+                                                   TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                     <Border Grid.Column="1"
                                             Classes="infoPill"

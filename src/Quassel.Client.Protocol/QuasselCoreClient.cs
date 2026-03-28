@@ -36,6 +36,7 @@ public sealed class QuasselCoreClient : IAsyncDisposable
     public event Action<QuasselSessionState>? SessionStateReceived;
     public event Action<QuasselNetworkState>? NetworkStateReceived;
     public event Action<QuasselBufferInfo>? BufferInfoUpdated;
+    public event Action<QuasselChannelTopicUpdate>? ChannelTopicReceived;
     public event Action<QuasselMessage>? MessageReceived;
     public event Action<BufferId, IReadOnlyList<QuasselMessage>>? BacklogReceived;
     public event Action<string>? StatusReceived;
@@ -137,6 +138,20 @@ public sealed class QuasselCoreClient : IAsyncDisposable
             cancellationToken,
             Encoding.UTF8.GetBytes("Network"),
             Encoding.UTF8.GetBytes(networkId.Value.ToString())).ConfigureAwait(false);
+    }
+
+    public async Task RequestChannelStateAsync(NetworkId networkId, string channelName, CancellationToken cancellationToken = default)
+    {
+        if (!networkId.IsValid || string.IsNullOrWhiteSpace(channelName))
+        {
+            return;
+        }
+
+        await SendPackedAsync(
+            InitRequestType,
+            cancellationToken,
+            Encoding.UTF8.GetBytes("IrcChannel"),
+            Encoding.UTF8.GetBytes($"{networkId.Value}/{channelName.Trim()}")).ConfigureAwait(false);
     }
 
     public async Task RequestBacklogAsync(BufferId bufferId, int amount = 120, CancellationToken cancellationToken = default)
@@ -270,6 +285,12 @@ public sealed class QuasselCoreClient : IAsyncDisposable
             return;
         }
 
+        if (className == "IrcChannel")
+        {
+            HandleIrcChannelSyncMessage(objectName, slotName, parameters);
+            return;
+        }
+
         if (className != "Network")
         {
             return;
@@ -356,6 +377,12 @@ public sealed class QuasselCoreClient : IAsyncDisposable
 
         var className = QtValueHelpers.AsUtf8String(values[0]);
         var objectName = QtValueHelpers.AsUtf8String(values[1]);
+        if (className == "IrcChannel")
+        {
+            HandleIrcChannelInitData(objectName, values);
+            return;
+        }
+
         if (className != "Network")
         {
             return;
@@ -384,6 +411,79 @@ public sealed class QuasselCoreClient : IAsyncDisposable
 
         _networkStates[networkId] = state;
         NetworkStateReceived?.Invoke(state);
+    }
+
+    private void HandleIrcChannelSyncMessage(string objectName, string slotName, IReadOnlyList<object?> parameters)
+    {
+        if (!TryParseChannelObjectName(objectName, out var networkId, out var channelName))
+        {
+            return;
+        }
+
+        string? topic = slotName switch
+        {
+            "setTopic" when parameters.Count > 0 => QtValueHelpers.AsString(parameters[0]),
+            "update" when parameters.Count > 0 => ReadTopicFromVariantMap(parameters[0]),
+            _ => null
+        };
+
+        if (topic is null)
+        {
+            return;
+        }
+
+        ChannelTopicReceived?.Invoke(new QuasselChannelTopicUpdate(networkId, channelName, topic));
+    }
+
+    private void HandleIrcChannelInitData(string objectName, IReadOnlyList<object?> values)
+    {
+        if (!TryParseChannelObjectName(objectName, out var networkId, out var channelName))
+        {
+            return;
+        }
+
+        var properties = new Dictionary<string, object?>(StringComparer.Ordinal);
+        for (var index = 2; index + 1 < values.Count; index += 2)
+        {
+            properties[QtValueHelpers.AsUtf8String(values[index])] = values[index + 1];
+        }
+
+        var topic = QtValueHelpers.AsString(properties.GetValueOrDefault("topic"));
+        ChannelTopicReceived?.Invoke(new QuasselChannelTopicUpdate(networkId, channelName, topic));
+    }
+
+    private static string? ReadTopicFromVariantMap(object? value)
+    {
+        var map = QtValueHelpers.AsMap(value);
+        return map.TryGetValue("topic", out var topicValue)
+            ? QtValueHelpers.AsString(topicValue)
+            : null;
+    }
+
+    private static bool TryParseChannelObjectName(string objectName, out NetworkId networkId, out string channelName)
+    {
+        networkId = default;
+        channelName = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(objectName))
+        {
+            return false;
+        }
+
+        var separatorIndex = objectName.IndexOf('/');
+        if (separatorIndex <= 0 || separatorIndex >= objectName.Length - 1)
+        {
+            return false;
+        }
+
+        if (!int.TryParse(objectName[..separatorIndex], out var rawNetworkId))
+        {
+            return false;
+        }
+
+        networkId = new NetworkId(rawNetworkId);
+        channelName = objectName[(separatorIndex + 1)..];
+        return networkId.IsValid && !string.IsNullOrWhiteSpace(channelName);
     }
 
     private QuasselSessionState ParseSessionState(Dictionary<string, object?> handshake)

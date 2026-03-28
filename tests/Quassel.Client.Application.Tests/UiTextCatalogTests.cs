@@ -1,4 +1,4 @@
-using Quassel.Client.Desktop.Localization;
+using QuasselGlow.Localization;
 
 namespace Quassel.Client.Application.Tests;
 

@@ -24,7 +24,7 @@ QuasselGlow is an early-stage project. The current build includes:
 
 ## Solution Layout
 
-- `src/Quassel.Client.Desktop`
+- `src/QuasselGlow`
   - Avalonia desktop application, views, styling, and window behavior
 - `src/Quassel.Client.Application`
   - Application logic and shared app-level helpers
@@ -54,7 +54,7 @@ dotnet build Quassel.slnx
 ### Run the desktop client
 
 ```powershell
-dotnet run --project .\src\Quassel.Client.Desktop\Quassel.Client.Desktop.csproj
+dotnet run --project .\src\QuasselGlow\QuasselGlow.csproj
 ```
 
 ### Run tests
@@ -63,11 +63,23 @@ dotnet run --project .\src\Quassel.Client.Desktop\Quassel.Client.Desktop.csproj
 dotnet test Quassel.slnx
 ```
 
+### Create release artifacts
+
+```powershell
+.\scripts\Publish-Release.ps1 -Version v0.2.0
+```
+
+This publishes self-contained release builds for `win-x64`, `linux-x64`, `osx-x64`, and `osx-arm64` into `.artifacts/releases/v0.2.0/`, writes `SHA256SUMS.txt`, creates `QuasselGlow-v0.2.0-<rid>.zip` archives, and seeds a `RELEASE_NOTES.md` file if one does not already exist.
+
+The release version is centralized in `Directory.Build.props`. If you omit `-Version`, the publish script will use that shared `VersionPrefix`.
+
 ## Configuration
 
 The app stores local connection settings in the user's local application data folder. Credentials are protected per user on Windows through DPAPI when possible.
 
 The selected UI language is also stored locally. QuasselGlow exposes the same locale list as the official Quassel translation set and ships with translated UI labels for that full locale set.
+
+Recent desktop polish includes persisted themes with dark mode, PM and mention alerts, tray support, and emoji-friendly font fallback.
 
 ## Notes
 

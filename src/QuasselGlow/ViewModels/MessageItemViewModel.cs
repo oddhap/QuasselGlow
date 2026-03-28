@@ -1,7 +1,7 @@
 using Quassel.Client.Application.Text;
 using Quassel.Client.Domain;
 
-namespace Quassel.Client.Desktop.ViewModels;
+namespace QuasselGlow.ViewModels;
 
 public sealed class MessageItemViewModel : ViewModelBase
 {

@@ -2,7 +2,7 @@
 
 ## Solution layout
 
-- `src/Quassel.Client.Desktop`
+- `src/QuasselGlow`
   - Avalonia desktop shell, app startup, windows, views, and platform-facing composition.
 - `src/Quassel.Client.Application`
   - View models, use cases, commands, and app state orchestration.

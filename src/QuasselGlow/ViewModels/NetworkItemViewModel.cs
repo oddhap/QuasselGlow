@@ -1,9 +1,10 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using Quassel.Client.Desktop.Localization;
+using QuasselGlow.Localization;
 using Quassel.Client.Domain;
 
-namespace Quassel.Client.Desktop.ViewModels;
+namespace QuasselGlow.ViewModels;
 
 public sealed partial class NetworkItemViewModel : ViewModelBase
 {
@@ -78,15 +79,24 @@ public sealed partial class NetworkItemViewModel : ViewModelBase
 
     public void UpsertBuffer(BufferItemViewModel buffer)
     {
-        var existingIndex = Buffers.IndexOf(Buffers.FirstOrDefault(item => item.BufferInfo.BufferId == buffer.BufferInfo.BufferId)!);
+        var existingIndex = Buffers
+            .Select((item, index) => (item, index))
+            .Where(entry => entry.item.BufferInfo.BufferId == buffer.BufferInfo.BufferId)
+            .Select(entry => entry.index)
+            .DefaultIfEmpty(-1)
+            .First();
+
         if (existingIndex >= 0)
         {
+            UnobserveBuffer(Buffers[existingIndex]);
             Buffers[existingIndex] = buffer;
+            ObserveBuffer(buffer);
+            ResortBuffer(buffer);
             return;
         }
 
-        var insertAt = Buffers.TakeWhile(item => Compare(item, buffer) <= 0).Count();
-        Buffers.Insert(insertAt, buffer);
+        ObserveBuffer(buffer);
+        InsertBuffer(buffer);
     }
 
     public void RemoveBuffer(BufferId bufferId)
@@ -94,12 +104,65 @@ public sealed partial class NetworkItemViewModel : ViewModelBase
         var buffer = Buffers.FirstOrDefault(item => item.BufferInfo.BufferId == bufferId);
         if (buffer is not null)
         {
+            UnobserveBuffer(buffer);
             Buffers.Remove(buffer);
         }
     }
 
+    private void ObserveBuffer(BufferItemViewModel buffer)
+    {
+        buffer.PropertyChanged -= OnBufferPropertyChanged;
+        buffer.PropertyChanged += OnBufferPropertyChanged;
+    }
+
+    private void UnobserveBuffer(BufferItemViewModel buffer)
+    {
+        buffer.PropertyChanged -= OnBufferPropertyChanged;
+    }
+
+    private void OnBufferPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is not BufferItemViewModel buffer)
+        {
+            return;
+        }
+
+        if (e.PropertyName is nameof(BufferItemViewModel.UnreadCount)
+            or nameof(BufferItemViewModel.HasMentionAlert)
+            or nameof(BufferItemViewModel.HasPrivateMessageAlert)
+            or nameof(BufferItemViewModel.DisplayName))
+        {
+            ResortBuffer(buffer);
+        }
+    }
+
+    private void InsertBuffer(BufferItemViewModel buffer)
+    {
+        var insertAt = Buffers.TakeWhile(item => Compare(item, buffer) <= 0).Count();
+        Buffers.Insert(insertAt, buffer);
+    }
+
+    private void ResortBuffer(BufferItemViewModel buffer)
+    {
+        var currentIndex = Buffers.IndexOf(buffer);
+        if (currentIndex < 0)
+        {
+            return;
+        }
+
+        Buffers.RemoveAt(currentIndex);
+        InsertBuffer(buffer);
+    }
+
     private static int Compare(BufferItemViewModel left, BufferItemViewModel right)
     {
+        var leftAttentionRank = AttentionRank(left);
+        var rightAttentionRank = AttentionRank(right);
+        if (leftAttentionRank != rightAttentionRank)
+        {
+            return leftAttentionRank.CompareTo(rightAttentionRank);
+        }
+
         var leftRank = Rank(left.BufferInfo.Type);
         var rightRank = Rank(right.BufferInfo.Type);
         if (leftRank != rightRank)
@@ -108,6 +171,21 @@ public sealed partial class NetworkItemViewModel : ViewModelBase
         }
 
         return string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int AttentionRank(BufferItemViewModel buffer)
+    {
+        if (buffer.HasPriorityAlert)
+        {
+            return 0;
+        }
+
+        if (buffer.HasUnread)
+        {
+            return 1;
+        }
+
+        return 2;
     }
 
     private static int Rank(QuasselBufferType type)

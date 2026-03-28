@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace Quassel.Client.Desktop.ViewModels;
+namespace QuasselGlow.ViewModels;
 
 public abstract class ViewModelBase : ObservableObject
 {

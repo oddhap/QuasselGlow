@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace Quassel.Client.Infrastructure;
 
-public sealed class LocalConnectionSettingsStore
+public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
 {
     private const string ProtectedPrefix = "dpapi:";
     private const string PlainPrefix = "plain:";
@@ -65,7 +65,10 @@ public sealed class LocalConnectionSettingsStore
                 persisted.TrustInvalidCertificates,
                 persisted.RememberLogin,
                 persisted.IsControlPanelOpen,
-                string.IsNullOrWhiteSpace(persisted.LanguageCode) ? string.Empty : persisted.LanguageCode.Trim());
+                string.IsNullOrWhiteSpace(persisted.LanguageCode) ? string.Empty : persisted.LanguageCode.Trim(),
+                string.IsNullOrWhiteSpace(persisted.ThemeKey) ? string.Empty : persisted.ThemeKey.Trim(),
+                string.IsNullOrWhiteSpace(persisted.ThemeModeKey) ? string.Empty : persisted.ThemeModeKey.Trim(),
+                persisted.MinimizeToTray);
         }
         catch
         {
@@ -94,7 +97,10 @@ public sealed class LocalConnectionSettingsStore
                 TrustInvalidCertificates = settings.TrustInvalidCertificates,
                 RememberLogin = settings.RememberLogin,
                 IsControlPanelOpen = settings.IsControlPanelOpen,
-                LanguageCode = string.IsNullOrWhiteSpace(settings.LanguageCode) ? string.Empty : settings.LanguageCode.Trim()
+                LanguageCode = string.IsNullOrWhiteSpace(settings.LanguageCode) ? string.Empty : settings.LanguageCode.Trim(),
+                ThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? string.Empty : settings.ThemeKey.Trim(),
+                ThemeModeKey = string.IsNullOrWhiteSpace(settings.ThemeModeKey) ? string.Empty : settings.ThemeModeKey.Trim(),
+                MinimizeToTray = settings.MinimizeToTray
             };
 
             var json = JsonSerializer.Serialize(persisted, SerializerOptions);
@@ -195,5 +201,8 @@ public sealed class LocalConnectionSettingsStore
         public bool RememberLogin { get; init; }
         public bool IsControlPanelOpen { get; init; }
         public string LanguageCode { get; init; } = string.Empty;
+        public string ThemeKey { get; init; } = string.Empty;
+        public string ThemeModeKey { get; init; } = string.Empty;
+        public bool MinimizeToTray { get; init; }
     }
 }

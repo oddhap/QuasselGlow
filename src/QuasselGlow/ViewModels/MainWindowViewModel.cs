@@ -4,26 +4,35 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Quassel.Client.Desktop.Localization;
+using QuasselGlow.Appearance;
+using QuasselGlow.Localization;
 using Quassel.Client.Domain;
 using Quassel.Client.Infrastructure;
 
-namespace Quassel.Client.Desktop.ViewModels;
+namespace QuasselGlow.ViewModels;
 
 public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
 {
-    private readonly QuasselSessionService _session = new();
-    private readonly LocalConnectionSettingsStore _settingsStore = new();
+    private readonly IQuasselSessionService _session;
+    private readonly IConnectionSettingsStore _settingsStore;
+    private readonly bool _marshalToUiThread;
     private readonly UiTextCatalog _strings = UiTextCatalog.Instance;
     private readonly Dictionary<NetworkId, NetworkItemViewModel> _networksById = new();
     private readonly Dictionary<BufferId, BufferItemViewModel> _buffersById = new();
+    private readonly Dictionary<string, string> _channelTopicsByKey = new(StringComparer.OrdinalIgnoreCase);
 
     private QuasselConnectionState _connectionState = QuasselConnectionState.Disconnected;
     private BufferItemViewModel? _selectedBuffer;
     private bool _isApplyingStoredSettings;
     private bool _statusUsesCustomText;
     private string? _lastConnectionStateMessage;
+    private string _statusDetailOverride = string.Empty;
     private string _selectedLanguageCode = UiTextCatalog.Instance.CurrentLanguageCode;
+    private string _selectedThemeKey = AppThemeCatalog.DefaultThemeKey;
+    private string _selectedThemeModeKey = AppThemeCatalog.DefaultModeKey;
+    private IReadOnlyList<AppDisplayOption> _supportedThemes = [];
+    private IReadOnlyList<AppDisplayOption> _supportedThemeModes = [];
+    private bool _canAcknowledgeSelectedBuffer = true;
 
     [ObservableProperty]
     private string _host = string.Empty;
@@ -58,8 +67,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     [ObservableProperty]
     private bool _isBusy;
 
+    [ObservableProperty]
+    private bool _minimizeToTrayEnabled;
+
     public MainWindowViewModel()
+        : this(new QuasselSessionService(), new LocalConnectionSettingsStore())
     {
+    }
+
+    public MainWindowViewModel(IQuasselSessionService session, IConnectionSettingsStore settingsStore, bool marshalToUiThread = true)
+    {
+        _session = session;
+        _settingsStore = settingsStore;
+        _marshalToUiThread = marshalToUiThread;
         _isApplyingStoredSettings = true;
         try
         {
@@ -70,20 +90,27 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             _isApplyingStoredSettings = false;
         }
 
+        RefreshAppearanceOptions();
+        ApplyAppearance();
         StatusText = BuildConnectionStatusText(_connectionState, _lastConnectionStateMessage);
 
         _session.ConnectionStateChanged += OnConnectionStateChanged;
         _session.SessionStateReceived += OnSessionStateReceived;
-        _session.NetworkStateReceived += state => Dispatcher.UIThread.Post(() => UpsertNetwork(state));
-        _session.BufferInfoUpdated += info => Dispatcher.UIThread.Post(() => UpsertBuffer(info));
-        _session.MessageReceived += message => Dispatcher.UIThread.Post(() => ApplyMessage(message));
-        _session.StatusReceived += message => Dispatcher.UIThread.Post(() => ApplyExternalStatus(message));
-        _session.NetworkRemoved += networkId => Dispatcher.UIThread.Post(() => RemoveNetwork(networkId));
+        _session.NetworkStateReceived += state => RunOnUiThread(() => UpsertNetwork(state));
+        _session.BufferInfoUpdated += info => RunOnUiThread(() => UpsertBuffer(info));
+        _session.ChannelTopicReceived += topic => RunOnUiThread(() => ApplyChannelTopic(topic));
+        _session.MessageReceived += message => RunOnUiThread(() => ApplyMessage(message));
+        _session.StatusReceived += OnStatusReceived;
+        _session.NetworkRemoved += networkId => RunOnUiThread(() => RemoveNetwork(networkId));
     }
 
     public UiTextCatalog Strings => _strings;
 
     public IReadOnlyList<UiLanguageOption> SupportedLanguages => _strings.SupportedLanguages;
+
+    public IReadOnlyList<AppDisplayOption> SupportedThemes => _supportedThemes;
+
+    public IReadOnlyList<AppDisplayOption> SupportedThemeModes => _supportedThemeModes;
 
     public UiLanguageOption? SelectedLanguage
     {
@@ -112,6 +139,58 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         }
     }
 
+    public AppDisplayOption? SelectedTheme
+    {
+        get => SupportedThemes.FirstOrDefault(option => string.Equals(option.Key, SelectedThemeKey, StringComparison.OrdinalIgnoreCase));
+        set => SelectedThemeKey = value?.Key ?? AppThemeCatalog.DefaultThemeKey;
+    }
+
+    public string SelectedThemeKey
+    {
+        get => _selectedThemeKey;
+        set
+        {
+            var resolved = AppThemeCatalog.NormalizeThemeKey(value);
+            if (string.Equals(_selectedThemeKey, resolved, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (SetProperty(ref _selectedThemeKey, resolved))
+            {
+                OnPropertyChanged(nameof(SelectedTheme));
+                ApplyAppearance();
+                SaveSettingsIfReady();
+            }
+        }
+    }
+
+    public AppDisplayOption? SelectedThemeMode
+    {
+        get => SupportedThemeModes.FirstOrDefault(option => string.Equals(option.Key, SelectedThemeModeKey, StringComparison.OrdinalIgnoreCase));
+        set => SelectedThemeModeKey = value?.Key ?? AppThemeCatalog.DefaultModeKey;
+    }
+
+    public string SelectedThemeModeKey
+    {
+        get => _selectedThemeModeKey;
+        set
+        {
+            var resolved = AppThemeCatalog.NormalizeModeKey(value);
+            if (string.Equals(_selectedThemeModeKey, resolved, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (SetProperty(ref _selectedThemeModeKey, resolved))
+            {
+                OnPropertyChanged(nameof(SelectedThemeMode));
+                ApplyAppearance();
+                SaveSettingsIfReady();
+            }
+        }
+    }
+
     public ObservableCollection<NetworkItemViewModel> Networks { get; } = [];
 
     public BufferItemViewModel? SelectedBuffer
@@ -134,7 +213,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
                 if (_selectedBuffer is not null)
                 {
                     _selectedBuffer.IsSelected = true;
-                    _selectedBuffer.MarkRead();
+                    if (_canAcknowledgeSelectedBuffer)
+                    {
+                        _selectedBuffer.MarkRead();
+                    }
+
                     _ = EnsureBacklogForSelectionAsync(_selectedBuffer);
                 }
 
@@ -180,7 +263,37 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public string SelectedBufferHeadingText => SelectedBuffer?.DisplayName ?? _strings["NoBufferSelected"];
 
-    public string SelectedNetworkStatusText => SelectedNetwork?.StatusText ?? _strings["SelectChannelOrQuery"];
+    public string SelectedNetworkStatusText
+    {
+        get
+        {
+            var baseStatus = SelectedNetwork?.StatusText ?? _strings["SelectChannelOrQuery"];
+            var alertSummary = BuildPendingAlertSummary();
+            return string.IsNullOrWhiteSpace(alertSummary)
+                ? baseStatus
+                : $"{baseStatus} | {alertSummary}";
+        }
+    }
+
+    public string SelectedBufferSubtitleText
+    {
+        get
+        {
+            if (SelectedBuffer is null)
+            {
+                return _strings["SelectChannelOrQuery"];
+            }
+
+            return SelectedBuffer.BufferInfo.Type switch
+            {
+                QuasselBufferType.Channel => SelectedBuffer.ChannelTopic,
+                QuasselBufferType.Query => string.Empty,
+                _ => SelectedNetworkStatusText
+            };
+        }
+    }
+
+    public bool ShowSelectedBufferSubtitle => !string.IsNullOrWhiteSpace(SelectedBufferSubtitleText);
 
     public string SelectedNickText => string.IsNullOrWhiteSpace(SelectedNetwork?.MyNick) ? "nick" : SelectedNetwork.MyNick;
 
@@ -197,6 +310,63 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         string.IsNullOrWhiteSpace(SelectedBuffer?.LastMessagePreview) ? _strings["NoMessagesYet"] : SelectedBuffer.LastMessagePreview;
 
     public string ComposerContextText => SelectedBuffer?.DisplayName ?? _strings["SelectChannelOrQuery"];
+
+    public string TrayToolTipText
+    {
+        get
+        {
+            var summary = BuildPendingAlertSummary();
+            var content = string.IsNullOrWhiteSpace(summary) ? StatusText : summary;
+            return $"QuasselGlow | {content}";
+        }
+    }
+
+    public string ConnectionStatusDetailText
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(_statusDetailOverride)
+                && !string.Equals(_statusDetailOverride, StatusText, StringComparison.Ordinal))
+            {
+                return _statusDetailOverride;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_lastConnectionStateMessage)
+                && !string.Equals(_lastConnectionStateMessage, StatusText, StringComparison.Ordinal))
+            {
+                return _lastConnectionStateMessage;
+            }
+
+            var trimmedHost = Host.Trim();
+            var trimmedUser = Username.Trim();
+            if (string.IsNullOrWhiteSpace(trimmedHost))
+            {
+                return _strings["StatusReadyToConnectDetail"];
+            }
+
+            return string.IsNullOrWhiteSpace(trimmedUser)
+                ? _strings.Format("ConnectionSummaryEndpointOnly", ConnectionEndpointText)
+                : _strings.Format("ConnectionSummaryWithIdentity", ConnectionEndpointText, trimmedUser);
+        }
+    }
+
+    public string SessionSummaryText
+    {
+        get
+        {
+            if (!IsConnected)
+            {
+                return _strings["SessionSummaryDisconnected"];
+            }
+
+            if (_networksById.Count == 0 && _buffersById.Count == 0)
+            {
+                return _strings["SessionSummaryWaitingForSync"];
+            }
+
+            return _strings.Format("SessionSummaryFormat", _networksById.Count, _buffersById.Count);
+        }
+    }
 
     public IBrush ConnectionBrush => _connectionState switch
     {
@@ -233,6 +403,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             {
                 _statusUsesCustomText = true;
                 StatusText = ex.Message;
+                _statusDetailOverride = string.Empty;
+                OnPropertyChanged(nameof(ConnectionStatusDetailText));
             });
         }
         finally
@@ -326,6 +498,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         SaveSettingsIfReady();
     }
 
+    partial void OnMinimizeToTrayEnabledChanged(bool value)
+    {
+        SaveSettingsIfReady();
+    }
+
     partial void OnTrustInvalidCertificatesChanged(bool value)
     {
         SaveSettingsIfReady();
@@ -347,18 +524,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     partial void OnHostChanged(string value)
     {
         OnPropertyChanged(nameof(ConnectionEndpointText));
+        OnPropertyChanged(nameof(ConnectionStatusDetailText));
         SaveSettingsIfReady();
     }
 
     partial void OnPortTextChanged(string value)
     {
         OnPropertyChanged(nameof(ConnectionEndpointText));
+        OnPropertyChanged(nameof(ConnectionStatusDetailText));
         SaveSettingsIfReady();
     }
 
     partial void OnUsernameChanged(string value)
     {
         OnPropertyChanged(nameof(ConnectionIdentityText));
+        OnPropertyChanged(nameof(ConnectionStatusDetailText));
         SaveSettingsIfReady();
     }
 
@@ -369,10 +549,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     private void OnConnectionStateChanged(QuasselConnectionState state, string? message)
     {
-        Dispatcher.UIThread.Post(() =>
+        RunOnUiThread(() =>
         {
             _connectionState = state;
             _lastConnectionStateMessage = message;
+            _statusDetailOverride = string.Empty;
             _statusUsesCustomText = state == QuasselConnectionState.Error && !string.IsNullOrWhiteSpace(message);
             StatusText = _statusUsesCustomText
                 ? message!
@@ -382,31 +563,55 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             OnPropertyChanged(nameof(IsConnected));
             OnPropertyChanged(nameof(ShowConnectAction));
             OnPropertyChanged(nameof(ShowDisconnectAction));
+            OnPropertyChanged(nameof(TrayToolTipText));
+            OnPropertyChanged(nameof(ConnectionStatusDetailText));
+            OnPropertyChanged(nameof(SessionSummaryText));
             NotifyCommandState();
+
+            if (state == QuasselConnectionState.Error)
+            {
+                IsConnectionEditorOpen = true;
+            }
 
             if (state is QuasselConnectionState.Disconnected or QuasselConnectionState.Error)
             {
+                DetachFromAllBuffers();
                 Networks.Clear();
                 _networksById.Clear();
                 _buffersById.Clear();
+                _channelTopicsByKey.Clear();
                 SelectedBuffer = null;
+                OnPropertyChanged(nameof(SessionSummaryText));
             }
         });
     }
 
+    private void OnStatusReceived(string message)
+    {
+        RunOnUiThread(() => ApplyExternalStatus(message));
+    }
+
     private void ApplyExternalStatus(string message)
     {
-        _statusUsesCustomText = true;
-        StatusText = message;
+        _statusDetailOverride = message;
+        if (!_statusUsesCustomText)
+        {
+            StatusText = BuildConnectionStatusText(_connectionState, _lastConnectionStateMessage);
+        }
+
+        OnPropertyChanged(nameof(TrayToolTipText));
+        OnPropertyChanged(nameof(ConnectionStatusDetailText));
     }
 
     private void OnSessionStateReceived(QuasselSessionState sessionState)
     {
-        Dispatcher.UIThread.Post(() =>
+        RunOnUiThread(() =>
         {
+            DetachFromAllBuffers();
             Networks.Clear();
             _networksById.Clear();
             _buffersById.Clear();
+            _channelTopicsByKey.Clear();
 
             foreach (var networkId in sessionState.Networks)
             {
@@ -419,6 +624,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             }
 
             SelectedBuffer ??= PickInitialBuffer();
+            OnPropertyChanged(nameof(TrayToolTipText));
+            OnPropertyChanged(nameof(SessionSummaryText));
         });
     }
 
@@ -444,6 +651,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         _networksById[networkId] = created;
         var insertAt = Networks.TakeWhile(item => item.NetworkId.Value < networkId.Value).Count();
         Networks.Insert(insertAt, created);
+        OnPropertyChanged(nameof(SessionSummaryText));
         return created;
     }
 
@@ -453,6 +661,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         if (_buffersById.TryGetValue(bufferInfo.BufferId, out var existing))
         {
             existing.UpdateInfo(bufferInfo);
+            ApplyCachedTopic(existing);
             if (SelectedBuffer?.BufferInfo.BufferId == bufferInfo.BufferId)
             {
                 RaiseSelectionTextPropertiesChanged();
@@ -463,9 +672,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
         var created = new BufferItemViewModel(bufferInfo);
         _buffersById[bufferInfo.BufferId] = created;
+        created.PropertyChanged += OnBufferPropertyChanged;
+        ApplyCachedTopic(created);
         network.UpsertBuffer(created);
 
         SelectedBuffer ??= PickInitialBuffer();
+        OnPropertyChanged(nameof(TrayToolTipText));
+        OnPropertyChanged(nameof(SessionSummaryText));
     }
 
     private void ApplyMessage(QuasselMessage message)
@@ -476,12 +689,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             buffer = _buffersById[message.BufferInfo.BufferId];
         }
 
-        buffer.AddMessage(message);
+        var shouldTrackUnread = SelectedBuffer?.BufferInfo.BufferId != buffer.BufferInfo.BufferId || !_canAcknowledgeSelectedBuffer;
+        buffer.AddMessage(message, shouldTrackUnread);
         if (SelectedBuffer?.BufferInfo.BufferId == buffer.BufferInfo.BufferId)
         {
-            buffer.MarkRead();
             RaiseSelectionTextPropertiesChanged();
         }
+
+        OnPropertyChanged(nameof(TrayToolTipText));
     }
 
     private void RemoveNetwork(NetworkId networkId)
@@ -493,6 +708,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
         foreach (var buffer in network.Buffers)
         {
+            buffer.PropertyChanged -= OnBufferPropertyChanged;
             _buffersById.Remove(buffer.BufferInfo.BufferId);
         }
 
@@ -505,6 +721,30 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         }
 
         RaiseSelectionTextPropertiesChanged();
+        OnPropertyChanged(nameof(TrayToolTipText));
+        OnPropertyChanged(nameof(SessionSummaryText));
+    }
+
+    private void ApplyChannelTopic(QuasselChannelTopicUpdate topic)
+    {
+        var cacheKey = BuildChannelTopicKey(topic.NetworkId, topic.ChannelName);
+        _channelTopicsByKey[cacheKey] = topic.Topic;
+
+        var matchingBuffer = _buffersById.Values.FirstOrDefault(buffer =>
+            buffer.BufferInfo.Type == QuasselBufferType.Channel
+            && buffer.BufferInfo.NetworkId == topic.NetworkId
+            && string.Equals(buffer.BufferInfo.BufferName, topic.ChannelName, StringComparison.OrdinalIgnoreCase));
+
+        if (matchingBuffer is null)
+        {
+            return;
+        }
+
+        matchingBuffer.SetChannelTopic(topic.Topic);
+        if (ReferenceEquals(matchingBuffer, SelectedBuffer))
+        {
+            RaiseSelectionTextPropertiesChanged();
+        }
     }
 
     private BufferItemViewModel? PickInitialBuffer()
@@ -525,8 +765,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                _statusUsesCustomText = true;
-                StatusText = ex.Message;
+                _statusDetailOverride = ex.Message;
+                OnPropertyChanged(nameof(ConnectionStatusDetailText));
             });
         }
     }
@@ -541,6 +781,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         TrustInvalidCertificates = settings.TrustInvalidCertificates;
         RememberLogin = settings.RememberLogin;
         IsControlPanelOpen = settings.IsControlPanelOpen;
+        SelectedThemeKey = settings.ThemeKey;
+        SelectedThemeModeKey = settings.ThemeModeKey;
+        MinimizeToTrayEnabled = settings.MinimizeToTray;
     }
 
     private void SaveSettings()
@@ -553,7 +796,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             TrustInvalidCertificates,
             RememberLogin,
             IsControlPanelOpen,
-            SelectedLanguageCode));
+            SelectedLanguageCode,
+            SelectedThemeKey,
+            SelectedThemeModeKey,
+            MinimizeToTrayEnabled));
     }
 
     private void SaveSettingsIfReady()
@@ -630,12 +876,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             StatusText = BuildConnectionStatusText(_connectionState, _lastConnectionStateMessage);
         }
 
+        RefreshAppearanceOptions();
         OnPropertyChanged(nameof(ConnectionEndpointText));
         OnPropertyChanged(nameof(ConnectionIdentityText));
         OnPropertyChanged(nameof(TlsModeText));
         OnPropertyChanged(nameof(CurrentSelectionText));
         OnPropertyChanged(nameof(CurrentNetworkText));
         OnPropertyChanged(nameof(SelectedBufferHeadingText));
+        OnPropertyChanged(nameof(SelectedBufferSubtitleText));
+        OnPropertyChanged(nameof(ShowSelectedBufferSubtitle));
         OnPropertyChanged(nameof(SelectedNetworkStatusText));
         OnPropertyChanged(nameof(SelectedNickText));
         OnPropertyChanged(nameof(ControlPanelNetworkNameText));
@@ -645,6 +894,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(ControlPanelBufferPreviewText));
         OnPropertyChanged(nameof(ComposerContextText));
         OnPropertyChanged(nameof(SelectedLanguage));
+        OnPropertyChanged(nameof(SelectedTheme));
+        OnPropertyChanged(nameof(SelectedThemeMode));
+        OnPropertyChanged(nameof(TrayToolTipText));
+        OnPropertyChanged(nameof(ConnectionStatusDetailText));
+        OnPropertyChanged(nameof(SessionSummaryText));
+        OnPropertyChanged(nameof(SelectedBufferSubtitleText));
+        OnPropertyChanged(nameof(ShowSelectedBufferSubtitle));
     }
 
     private void RaiseSelectionTextPropertiesChanged()
@@ -652,6 +908,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(CurrentSelectionText));
         OnPropertyChanged(nameof(CurrentNetworkText));
         OnPropertyChanged(nameof(SelectedBufferHeadingText));
+        OnPropertyChanged(nameof(SelectedBufferSubtitleText));
+        OnPropertyChanged(nameof(ShowSelectedBufferSubtitle));
         OnPropertyChanged(nameof(SelectedNetworkStatusText));
         OnPropertyChanged(nameof(SelectedNickText));
         OnPropertyChanged(nameof(ControlPanelNetworkNameText));
@@ -660,6 +918,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(ControlPanelBufferNameText));
         OnPropertyChanged(nameof(ControlPanelBufferPreviewText));
         OnPropertyChanged(nameof(ComposerContextText));
+        OnPropertyChanged(nameof(TrayToolTipText));
     }
 
     private void NotifyCommandState()
@@ -667,5 +926,133 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         ConnectCommand.NotifyCanExecuteChanged();
         DisconnectCommand.NotifyCanExecuteChanged();
         SendMessageCommand.NotifyCanExecuteChanged();
+    }
+
+    public void SetForegroundState(bool isForeground)
+    {
+        if (_canAcknowledgeSelectedBuffer == isForeground)
+        {
+            return;
+        }
+
+        _canAcknowledgeSelectedBuffer = isForeground;
+        if (isForeground)
+        {
+            AcknowledgeSelectedBuffer();
+        }
+    }
+
+    private void AcknowledgeSelectedBuffer()
+    {
+        if (SelectedBuffer is null)
+        {
+            return;
+        }
+
+        SelectedBuffer.MarkRead();
+        RaiseSelectionTextPropertiesChanged();
+    }
+
+    private void OnBufferPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is not BufferItemViewModel buffer)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(buffer, SelectedBuffer)
+            && e.PropertyName is nameof(BufferItemViewModel.DisplayName)
+                or nameof(BufferItemViewModel.LastMessagePreview)
+                or nameof(BufferItemViewModel.ChannelTopic)
+                or nameof(BufferItemViewModel.UnreadCount)
+                or nameof(BufferItemViewModel.HasMentionAlert)
+                or nameof(BufferItemViewModel.HasPrivateMessageAlert))
+        {
+            RaiseSelectionTextPropertiesChanged();
+        }
+
+        if (e.PropertyName is nameof(BufferItemViewModel.UnreadCount)
+            or nameof(BufferItemViewModel.HasMentionAlert)
+            or nameof(BufferItemViewModel.HasPrivateMessageAlert))
+        {
+            OnPropertyChanged(nameof(SelectedNetworkStatusText));
+            OnPropertyChanged(nameof(TrayToolTipText));
+        }
+    }
+
+    private void DetachFromAllBuffers()
+    {
+        foreach (var buffer in _buffersById.Values)
+        {
+            buffer.PropertyChanged -= OnBufferPropertyChanged;
+        }
+    }
+
+    private void RefreshAppearanceOptions()
+    {
+        _supportedThemes =
+        [
+            new AppDisplayOption("glow", _strings["ThemeGlow"]),
+            new AppDisplayOption("tide", _strings["ThemeTide"]),
+            new AppDisplayOption("ember", _strings["ThemeEmber"])
+        ];
+
+        _supportedThemeModes =
+        [
+            new AppDisplayOption("light", _strings["ThemeModeLight"]),
+            new AppDisplayOption("dark", _strings["ThemeModeDark"])
+        ];
+
+        OnPropertyChanged(nameof(SupportedThemes));
+        OnPropertyChanged(nameof(SupportedThemeModes));
+    }
+
+    private void ApplyAppearance()
+    {
+        App.CurrentApp?.ApplyAppearance(SelectedThemeKey, SelectedThemeModeKey);
+    }
+
+    private string BuildPendingAlertSummary()
+    {
+        var mentionCount = _buffersById.Values.Count(buffer => buffer.HasMentionAlert);
+        var privateMessageCount = _buffersById.Values.Count(buffer => buffer.HasPrivateMessageAlert);
+
+        return (mentionCount, privateMessageCount) switch
+        {
+            (> 0, > 0) => _strings.Format("AlertMentionsAndPrivateMessagesSummary", mentionCount, privateMessageCount),
+            (> 0, 0) => _strings.Format("AlertMentionsSummary", mentionCount),
+            (0, > 0) => _strings.Format("AlertPrivateMessagesSummary", privateMessageCount),
+            _ => string.Empty
+        };
+    }
+
+    private void RunOnUiThread(Action action)
+    {
+        if (!_marshalToUiThread || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(action);
+    }
+
+    private void ApplyCachedTopic(BufferItemViewModel buffer)
+    {
+        if (buffer.BufferInfo.Type != QuasselBufferType.Channel)
+        {
+            return;
+        }
+
+        var cacheKey = BuildChannelTopicKey(buffer.BufferInfo.NetworkId, buffer.BufferInfo.BufferName);
+        if (_channelTopicsByKey.TryGetValue(cacheKey, out var topic))
+        {
+            buffer.SetChannelTopic(topic);
+        }
+    }
+
+    private static string BuildChannelTopicKey(NetworkId networkId, string channelName)
+    {
+        return $"{networkId.Value}/{channelName.Trim()}";
     }
 }

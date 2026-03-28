@@ -21,7 +21,10 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             TrustInvalidCertificates: true,
             RememberLogin: true,
             IsControlPanelOpen: true,
-            LanguageCode: "nb");
+            LanguageCode: "nb",
+            ThemeKey: "ember",
+            ThemeModeKey: "dark",
+            MinimizeToTray: true);
 
         store.Save(expected);
         var actual = store.Load();
@@ -34,6 +37,9 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.True(actual.RememberLogin);
         Assert.True(actual.IsControlPanelOpen);
         Assert.Equal(expected.LanguageCode, actual.LanguageCode);
+        Assert.Equal(expected.ThemeKey, actual.ThemeKey);
+        Assert.Equal(expected.ThemeModeKey, actual.ThemeModeKey);
+        Assert.True(actual.MinimizeToTray);
     }
 
     [Fact]
@@ -51,7 +57,10 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             TrustInvalidCertificates: true,
             RememberLogin: false,
             IsControlPanelOpen: false,
-            LanguageCode: "en_US"));
+            LanguageCode: "en_US",
+            ThemeKey: "tide",
+            ThemeModeKey: "light",
+            MinimizeToTray: false));
 
         var actual = store.Load();
 
@@ -61,6 +70,9 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.False(actual.RememberLogin);
         Assert.False(actual.IsControlPanelOpen);
         Assert.Equal("en_US", actual.LanguageCode);
+        Assert.Equal("tide", actual.ThemeKey);
+        Assert.Equal("light", actual.ThemeModeKey);
+        Assert.False(actual.MinimizeToTray);
         Assert.Equal(string.Empty, actual.Username);
         Assert.Equal(string.Empty, actual.Password);
     }

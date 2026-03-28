@@ -2,9 +2,9 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using Quassel.Client.Desktop.ViewModels;
+using QuasselGlow.ViewModels;
 
-namespace Quassel.Client.Desktop;
+namespace QuasselGlow;
 
 /// <summary>
 /// Given a view model, returns the corresponding view if possible.

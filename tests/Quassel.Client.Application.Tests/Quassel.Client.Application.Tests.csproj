@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Quassel.Client.Application\Quassel.Client.Application.csproj" />
-    <ProjectReference Include="..\..\src\Quassel.Client.Desktop\Quassel.Client.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\QuasselGlow\QuasselGlow.csproj" />
     <ProjectReference Include="..\..\src\Quassel.Client.Infrastructure\Quassel.Client.Infrastructure.csproj" />
   </ItemGroup>
 

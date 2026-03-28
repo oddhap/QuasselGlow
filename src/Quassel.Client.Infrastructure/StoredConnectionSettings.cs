@@ -8,4 +8,7 @@ public sealed record StoredConnectionSettings(
     bool TrustInvalidCertificates = false,
     bool RememberLogin = false,
     bool IsControlPanelOpen = false,
-    string LanguageCode = "");
+    string LanguageCode = "",
+    string ThemeKey = "",
+    string ThemeModeKey = "",
+    bool MinimizeToTray = false);

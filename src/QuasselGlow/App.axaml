@@ -1,0 +1,64 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="QuasselGlow.App"
+        xmlns:local="using:QuasselGlow"
+             RequestedThemeVariant="Light">
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+
+    <Application.Resources>
+        <SolidColorBrush x:Key="ShellBg" Color="#FFF8F0"/>
+        <SolidColorBrush x:Key="ShellPanel" Color="#FFFDF9"/>
+        <SolidColorBrush x:Key="ShellPanelMuted" Color="#F3F0E8"/>
+        <SolidColorBrush x:Key="ShellBorder" Color="#D9D6CF"/>
+        <SolidColorBrush x:Key="InkStrong" Color="#1F2937"/>
+        <SolidColorBrush x:Key="InkSoft" Color="#526072"/>
+        <SolidColorBrush x:Key="AccentRust" Color="#D6652F"/>
+        <SolidColorBrush x:Key="AccentTeal" Color="#0F766E"/>
+        <SolidColorBrush x:Key="AccentSky" Color="#DDE9F4"/>
+        <SolidColorBrush x:Key="AccentSand" Color="#F9E8D1"/>
+        <SolidColorBrush x:Key="MessageRowBg" Color="#FFFDF9"/>
+        <SolidColorBrush x:Key="MessageRowBorder" Color="#ECE7DF"/>
+        <SolidColorBrush x:Key="MessageRowSelfBg" Color="#F4FBF8"/>
+        <SolidColorBrush x:Key="MessageRowSelfBorder" Color="#A7D9C3"/>
+        <SolidColorBrush x:Key="MessageRowHighlightBg" Color="#FFF2D8"/>
+        <SolidColorBrush x:Key="MessageRowHighlightBorder" Color="#E7B978"/>
+        <SolidColorBrush x:Key="MessageRowStatusBg" Color="#F3F0E8"/>
+        <SolidColorBrush x:Key="ComposerSelection" Color="#6BD6ECE8"/>
+        <SolidColorBrush x:Key="WindowChromeHoverBg" Color="#F6F1E9"/>
+        <SolidColorBrush x:Key="WindowChromePressedBg" Color="#EEE4D7"/>
+        <SolidColorBrush x:Key="WindowChromeCloseFg" Color="#9D7563"/>
+        <SolidColorBrush x:Key="WindowChromeCloseHoverBg" Color="#F7E8E0"/>
+        <SolidColorBrush x:Key="WindowChromeCloseHoverFg" Color="#8B5438"/>
+        <SolidColorBrush x:Key="WindowChromeClosePressedBg" Color="#EEDACF"/>
+        <SolidColorBrush x:Key="WindowChromeClosePressedFg" Color="#74412A"/>
+        <SolidColorBrush x:Key="BufferPrefixBg" Color="#E8EDF4"/>
+        <LinearGradientBrush x:Key="ShellBackdropBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FFF8F0" Offset="0"/>
+            <GradientStop Color="#F8FBFF" Offset="0.55"/>
+            <GradientStop Color="#FFF1E6" Offset="1"/>
+        </LinearGradientBrush>
+    </Application.Resources>
+  
+    <Application.Styles>
+        <FluentTheme />
+        <Style Selector="Window">
+            <Setter Property="FontFamily" Value="IBM Plex Sans, Segoe UI, Noto Sans, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif"/>
+            <Setter Property="Background" Value="{StaticResource ShellBg}"/>
+            <Setter Property="Foreground" Value="{StaticResource InkStrong}"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{StaticResource ShellPanel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ShellBorder}"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontFamily" Value="IBM Plex Sans, Segoe UI, Noto Sans, Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+    </Application.Styles>
+</Application>
