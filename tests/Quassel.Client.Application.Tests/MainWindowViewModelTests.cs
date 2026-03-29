@@ -99,6 +99,27 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task StatusBuffer_AllowsSendingJoinCommands()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var statusBuffer = new QuasselBufferInfo(new BufferId(3), new NetworkId(1), QuasselBufferType.Status, 0, "Status");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [statusBuffer], [new NetworkId(1)]));
+
+        Assert.True(viewModel.SelectedBuffer?.AcceptsInput);
+
+        viewModel.DraftMessage = "/join #quassel";
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+
+        Assert.Single(session.SentInputs);
+        Assert.Equal(statusBuffer.BufferId, session.SentInputs[0].bufferInfo.BufferId);
+        Assert.Equal("/join #quassel", session.SentInputs[0].text);
+    }
+
+    [Fact]
     public void ChannelTopicUpdate_UsesTopicForSelectedBufferSubtitle()
     {
         var session = new FakeSessionService();

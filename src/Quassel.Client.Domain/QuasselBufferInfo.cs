@@ -7,6 +7,6 @@ public sealed record QuasselBufferInfo(
     uint GroupId,
     string BufferName)
 {
-    public bool AcceptsInput => Type is QuasselBufferType.Channel or QuasselBufferType.Query;
+    public bool AcceptsInput => Type is QuasselBufferType.Channel or QuasselBufferType.Query or QuasselBufferType.Status;
     public bool IsStatusLike => Type is QuasselBufferType.Status or QuasselBufferType.Group;
 }
