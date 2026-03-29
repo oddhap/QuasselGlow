@@ -156,13 +156,6 @@ public sealed partial class NetworkItemViewModel : ViewModelBase
 
     private static int Compare(BufferItemViewModel left, BufferItemViewModel right)
     {
-        var leftAttentionRank = AttentionRank(left);
-        var rightAttentionRank = AttentionRank(right);
-        if (leftAttentionRank != rightAttentionRank)
-        {
-            return leftAttentionRank.CompareTo(rightAttentionRank);
-        }
-
         var leftRank = Rank(left.BufferInfo.Type);
         var rightRank = Rank(right.BufferInfo.Type);
         if (leftRank != rightRank)
@@ -171,21 +164,6 @@ public sealed partial class NetworkItemViewModel : ViewModelBase
         }
 
         return string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static int AttentionRank(BufferItemViewModel buffer)
-    {
-        if (buffer.HasPriorityAlert)
-        {
-            return 0;
-        }
-
-        if (buffer.HasUnread)
-        {
-            return 1;
-        }
-
-        return 2;
     }
 
     private static int Rank(QuasselBufferType type)
