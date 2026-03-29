@@ -18,4 +18,5 @@ public interface IQuasselSessionService : IAsyncDisposable
     Task DisconnectAsync();
     Task SendInputAsync(QuasselBufferInfo bufferInfo, string text, CancellationToken cancellationToken = default);
     Task EnsureBacklogAsync(QuasselBufferInfo bufferInfo, int amount = 120, CancellationToken cancellationToken = default);
+    Task DeleteBufferAsync(QuasselBufferInfo bufferInfo, CancellationToken cancellationToken = default);
 }

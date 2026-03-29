@@ -22,6 +22,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly Dictionary<NetworkId, NetworkItemViewModel> _networksById = new();
     private readonly Dictionary<BufferId, BufferItemViewModel> _buffersById = new();
     private readonly Dictionary<string, QuasselChannelState> _channelStatesByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _suppressedChannelBufferKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<BufferId> _pendingDeletedChannelBuffers = [];
 
     private QuasselConnectionState _connectionState = QuasselConnectionState.Disconnected;
     private BufferItemViewModel? _selectedBuffer;
@@ -504,6 +506,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         }
 
         DraftMessage = string.Empty;
+        RestoreSuppressedChannelForJoinCommand(SelectedBuffer.BufferInfo.NetworkId, text);
         await _session.SendInputAsync(SelectedBuffer.BufferInfo, text).ConfigureAwait(false);
     }
 
@@ -571,9 +574,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     }
 
     [RelayCommand]
-    private Task LeaveChannelBufferAsync(BufferItemViewModel? buffer)
+    private async Task LeaveChannelBufferAsync(BufferItemViewModel? buffer)
     {
-        return SendBufferCommandAsync(buffer, QuasselBufferType.Channel, static bufferInfo => $"/part {bufferInfo.BufferName}");
+        if (buffer is null || buffer.BufferInfo.Type != QuasselBufferType.Channel)
+        {
+            return;
+        }
+
+        await SendBufferCommandAsync(buffer, QuasselBufferType.Channel, static bufferInfo => $"/part {bufferInfo.BufferName}").ConfigureAwait(false);
+        RunOnUiThread(() =>
+        {
+            _pendingDeletedChannelBuffers.Add(buffer.BufferInfo.BufferId);
+            SuppressChannelBuffer(buffer.BufferInfo.NetworkId, buffer.BufferInfo.BufferName);
+            RemoveBuffer(buffer);
+        });
     }
 
     [RelayCommand]
@@ -781,6 +795,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             _networksById.Clear();
             _buffersById.Clear();
             _channelStatesByKey.Clear();
+            _pendingDeletedChannelBuffers.Clear();
 
             foreach (var networkId in sessionState.Networks)
             {
@@ -826,6 +841,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     private void UpsertBuffer(QuasselBufferInfo bufferInfo)
     {
+        if (ShouldSuppressBuffer(bufferInfo))
+        {
+            return;
+        }
+
         var network = EnsureNetwork(bufferInfo.NetworkId);
         if (_buffersById.TryGetValue(bufferInfo.BufferId, out var existing))
         {
@@ -852,12 +872,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     private void ApplyMessage(QuasselMessage message)
     {
-        if (!_buffersById.TryGetValue(message.BufferInfo.BufferId, out var existingBuffer)
-            && IsChannelBufferRemovalMessage(message))
+        if (IsChannelBufferRemovalMessage(message))
         {
+            if (_pendingDeletedChannelBuffers.Remove(message.BufferInfo.BufferId))
+            {
+                _ = _session.DeleteBufferAsync(message.BufferInfo);
+            }
+
+            if (_buffersById.TryGetValue(message.BufferInfo.BufferId, out var removalBuffer))
+            {
+                RemoveBuffer(removalBuffer);
+            }
+
             return;
         }
 
+        _buffersById.TryGetValue(message.BufferInfo.BufferId, out var existingBuffer);
         var buffer = existingBuffer;
         if (buffer is null)
         {
@@ -874,13 +904,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         {
             RaiseSelectionTextPropertiesChanged();
         }
-
-        if (IsChannelBufferRemovalMessage(message))
-        {
-            RemoveBuffer(buffer);
-            return;
-        }
-
         OnPropertyChanged(nameof(TrayToolTipText));
     }
 
@@ -1358,6 +1381,60 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private static string BuildChannelStateKey(NetworkId networkId, string channelName)
     {
         return $"{networkId.Value}/{channelName.Trim()}";
+    }
+
+    private void SuppressChannelBuffer(NetworkId networkId, string channelName)
+    {
+        if (string.IsNullOrWhiteSpace(channelName))
+        {
+            return;
+        }
+
+        _suppressedChannelBufferKeys.Add(BuildChannelStateKey(networkId, channelName));
+    }
+
+    private bool ShouldSuppressBuffer(QuasselBufferInfo bufferInfo)
+    {
+        return bufferInfo.Type == QuasselBufferType.Channel
+            && !string.IsNullOrWhiteSpace(bufferInfo.BufferName)
+            && _suppressedChannelBufferKeys.Contains(BuildChannelStateKey(bufferInfo.NetworkId, bufferInfo.BufferName));
+    }
+
+    private void RestoreSuppressedChannelForJoinCommand(NetworkId networkId, string text)
+    {
+        if (!TryParseJoinTarget(text, out var channelName))
+        {
+            return;
+        }
+
+        _suppressedChannelBufferKeys.Remove(BuildChannelStateKey(networkId, channelName));
+    }
+
+    private static bool TryParseJoinTarget(string text, out string channelName)
+    {
+        channelName = string.Empty;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var trimmed = text.Trim();
+        if (!trimmed.StartsWith("/join ", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var remainder = trimmed[6..].Trim();
+        if (remainder.Length == 0)
+        {
+            return false;
+        }
+
+        channelName = remainder
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault() ?? string.Empty;
+
+        return channelName.Length > 0;
     }
 
     private static bool IsChannelBufferRemovalMessage(QuasselMessage message)

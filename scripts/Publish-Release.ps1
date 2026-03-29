@@ -136,7 +136,24 @@ function New-ZipArchiveFromPath {
         Remove-Item -LiteralPath $ArchivePath -Force
     }
 
-    Compress-Archive -Path $SourcePath -DestinationPath $ArchivePath -CompressionLevel Optimal
+    $resolvedSourcePath = (Resolve-Path -LiteralPath $SourcePath).Path
+    $shouldUseDitto = (Test-IsMacOSHost) `
+        -and (Test-CommandAvailable -Name "ditto") `
+        -and [System.IO.Path]::GetExtension($resolvedSourcePath).Equals(".app", [System.StringComparison]::OrdinalIgnoreCase)
+
+    if ($shouldUseDitto) {
+        Invoke-External -FilePath "ditto" -Arguments @(
+            "-c",
+            "-k",
+            "--sequesterRsrc",
+            "--keepParent",
+            $resolvedSourcePath,
+            $ArchivePath
+        )
+        return
+    }
+
+    Compress-Archive -Path $resolvedSourcePath -DestinationPath $ArchivePath -CompressionLevel Optimal
 }
 
 function New-ZipArchiveFromDirectoryContents {

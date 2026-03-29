@@ -326,11 +326,12 @@ public sealed class MainWindowViewModelTests
         Assert.Single(session.SentInputs);
         Assert.Equal(secondBuffer.BufferId, session.SentInputs[0].bufferInfo.BufferId);
         Assert.Equal("/part #beta", session.SentInputs[0].text);
-        Assert.Contains(viewModel.Networks.Single().Buffers, buffer => buffer.DisplayName == "#beta");
+        Assert.Empty(session.DeletedBuffers);
+        Assert.DoesNotContain(viewModel.Networks.Single().Buffers, buffer => buffer.DisplayName == "#beta");
     }
 
     [Fact]
-    public void SelfPartMessage_RemovesChannelBufferFromList()
+    public async Task SelfPartMessage_RemovesChannelBufferFromList()
     {
         var session = new FakeSessionService();
         var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
@@ -340,6 +341,9 @@ public sealed class MainWindowViewModelTests
 
         session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
         session.EmitSessionState(new QuasselSessionState([], [channelBuffer, queryBuffer], [new NetworkId(1)]));
+        var targetBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.DisplayName == "#quassel");
+
+        await viewModel.LeaveChannelBufferCommand.ExecuteAsync(targetBuffer);
 
         session.EmitMessage(new QuasselMessage(
             new MsgId(21),
@@ -352,6 +356,75 @@ public sealed class MainWindowViewModelTests
 
         Assert.DoesNotContain(viewModel.Networks.Single().Buffers, buffer => buffer.DisplayName == "#quassel");
         Assert.Equal("bob", viewModel.SelectedBuffer?.DisplayName);
+        Assert.Single(session.DeletedBuffers);
+        Assert.Equal(channelBuffer.BufferId, session.DeletedBuffers[0].BufferId);
+    }
+
+    [Fact]
+    public void SelfPartMessage_DoesNotLeavePartEventInChannelMessages()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(18), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var queryBuffer = new QuasselBufferInfo(new BufferId(19), new NetworkId(1), QuasselBufferType.Query, 0, "bob");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer, queryBuffer], [new NetworkId(1)]));
+
+        var channel = viewModel.Networks.Single().Buffers.Single(buffer => buffer.DisplayName == "#quassel");
+        session.EmitMessage(new QuasselMessage(
+            new MsgId(31),
+            DateTimeOffset.Parse("2026-03-28T13:31:00+01:00"),
+            channelBuffer,
+            QuasselMessageType.Part,
+            "Oddi has left #quassel",
+            "Oddi!user@example",
+            QuasselMessageFlags.Self));
+
+        Assert.Empty(channel.Messages);
+    }
+
+    [Fact]
+    public async Task LeaveChannelBuffer_IgnoresLaterBufferUpdatesForSameChannel()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var firstBuffer = new QuasselBufferInfo(new BufferId(8), new NetworkId(1), QuasselBufferType.Channel, 0, "#alpha");
+        var secondBuffer = new QuasselBufferInfo(new BufferId(9), new NetworkId(1), QuasselBufferType.Channel, 0, "#beta");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [firstBuffer, secondBuffer], [new NetworkId(1)]));
+        var targetBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.DisplayName == "#beta");
+
+        await viewModel.LeaveChannelBufferCommand.ExecuteAsync(targetBuffer);
+        session.EmitBufferInfo(secondBuffer);
+
+        Assert.DoesNotContain(viewModel.Networks.Single().Buffers, buffer => buffer.DisplayName == "#beta");
+    }
+
+    [Fact]
+    public async Task JoinCommand_RestoresSuppressedChannelBuffer()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var statusBuffer = new QuasselBufferInfo(new BufferId(1), new NetworkId(1), QuasselBufferType.Status, 0, "status");
+        var channelBuffer = new QuasselBufferInfo(new BufferId(9), new NetworkId(1), QuasselBufferType.Channel, 0, "#beta");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [statusBuffer, channelBuffer], [new NetworkId(1)]));
+        var targetBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.DisplayName == "#beta");
+
+        await viewModel.LeaveChannelBufferCommand.ExecuteAsync(targetBuffer);
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.DisplayName == "status");
+        viewModel.DraftMessage = "/join #beta";
+
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+        session.EmitBufferInfo(channelBuffer);
+
+        Assert.Contains(viewModel.Networks.Single().Buffers, buffer => buffer.DisplayName == "#beta");
     }
 
     [Fact]
@@ -431,6 +504,7 @@ public sealed class MainWindowViewModelTests
 
         public List<(QuasselBufferInfo bufferInfo, int amount)> BacklogRequests { get; } = [];
         public List<(QuasselBufferInfo bufferInfo, string text)> SentInputs { get; } = [];
+        public List<QuasselBufferInfo> DeletedBuffers { get; } = [];
 
         public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task DisconnectAsync() => Task.CompletedTask;
@@ -443,6 +517,12 @@ public sealed class MainWindowViewModelTests
         public Task EnsureBacklogAsync(QuasselBufferInfo bufferInfo, int amount = 120, CancellationToken cancellationToken = default)
         {
             BacklogRequests.Add((bufferInfo, amount));
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteBufferAsync(QuasselBufferInfo bufferInfo, CancellationToken cancellationToken = default)
+        {
+            DeletedBuffers.Add(bufferInfo);
             return Task.CompletedTask;
         }
 

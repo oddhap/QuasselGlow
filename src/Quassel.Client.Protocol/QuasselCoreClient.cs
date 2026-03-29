@@ -177,6 +177,22 @@ public sealed class QuasselCoreClient : IAsyncDisposable
             0).ConfigureAwait(false);
     }
 
+    public async Task DeleteBufferAsync(BufferId bufferId, CancellationToken cancellationToken = default)
+    {
+        if (!bufferId.IsValid)
+        {
+            return;
+        }
+
+        await SendPackedAsync(
+            SyncRequestType,
+            cancellationToken,
+            Encoding.UTF8.GetBytes("BufferSyncer"),
+            Encoding.UTF8.GetBytes(string.Empty),
+            Encoding.UTF8.GetBytes("requestRemoveBuffer"),
+            bufferId).ConfigureAwait(false);
+    }
+
     public async Task SendInputAsync(QuasselBufferInfo bufferInfo, string text, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(text) || !bufferInfo.BufferId.IsValid)

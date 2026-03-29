@@ -51,6 +51,11 @@ public sealed class QuasselSessionService : IQuasselSessionService
         return _client.SendInputAsync(bufferInfo, text, cancellationToken);
     }
 
+    public Task DeleteBufferAsync(QuasselBufferInfo bufferInfo, CancellationToken cancellationToken = default)
+    {
+        return _client.DeleteBufferAsync(bufferInfo.BufferId, cancellationToken);
+    }
+
     public async Task EnsureBacklogAsync(QuasselBufferInfo bufferInfo, int amount = 120, CancellationToken cancellationToken = default)
     {
         if (!_requestedBacklog.Add(bufferInfo.BufferId))
