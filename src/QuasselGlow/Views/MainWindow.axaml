@@ -233,8 +233,7 @@
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto"
-          Grid.IsSharedSizeScope="True">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
         <Border Grid.RowSpan="4"
                 Background="{StaticResource ShellBackdropBrush}" />
 
@@ -340,7 +339,7 @@
 
         <Grid Grid.Row="1" Margin="18,14,18,14" ColumnSpacing="14">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" SharedSizeGroup="LeftRail" />
+                <ColumnDefinition Width="280" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
@@ -579,7 +578,7 @@
 
         <Grid Grid.Row="2" Margin="18,0,18,14" ColumnSpacing="14">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" SharedSizeGroup="LeftRail" />
+                <ColumnDefinition Width="280" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Border Classes="panel">
@@ -596,8 +595,13 @@
                                         <StackPanel Spacing="10">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <StackPanel>
-                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" />
-                                                    <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="{StaticResource InkSoft}" />
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontWeight="Bold"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding StatusText}"
+                                                               FontSize="12"
+                                                               Foreground="{StaticResource InkSoft}"
+                                                               TextTrimming="CharacterEllipsis" />
                                                 </StackPanel>
                                                 <Border Grid.Column="1"
                                                         Classes="infoPill"
@@ -656,10 +660,13 @@
                                                                                Foreground="{StaticResource AccentTeal}" />
                                                                 </Border>
                                                                 <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="1">
-                                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                                                                    <TextBlock Text="{Binding DisplayName}"
+                                                                               FontWeight="SemiBold"
+                                                                               TextTrimming="CharacterEllipsis" />
                                                                     <TextBlock Text="{Binding SidebarSecondaryText}"
                                                                                FontSize="12"
                                                                                Foreground="{StaticResource InkSoft}"
+                                                                               TextTrimming="CharacterEllipsis"
                                                                                IsVisible="{Binding HasSidebarSecondaryText}" />
                                                                 </StackPanel>
                                                                 <StackPanel Grid.Column="2"
