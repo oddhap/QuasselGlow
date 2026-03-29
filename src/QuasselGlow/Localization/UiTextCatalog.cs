@@ -289,6 +289,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("ThemeModeLight", "Light"),
             ("ThemeModeDark", "Dark"),
             ("ThemeGlow", "Glow"),
+            ("ThemeMacos", "macOS"),
             ("ThemeTide", "Tide"),
             ("ThemeEmber", "Ember"),
             ("ThemeAurora", "Aurora"),
@@ -394,6 +395,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("ThemeModeLight", "Lys"),
             ("ThemeModeDark", "Mørk"),
             ("ThemeGlow", "Glow"),
+            ("ThemeMacos", "macOS"),
             ("ThemeTide", "Tide"),
             ("ThemeEmber", "Ember"),
             ("ThemeAurora", "Aurora"),
@@ -2211,6 +2213,7 @@ public sealed class UiTextCatalog : ObservableObject
     {
         var shared = Pack(
             ("ThemeGlow", "Glow"),
+            ("ThemeMacos", "macOS"),
             ("ThemeTide", "Tide"),
             ("ThemeEmber", "Ember"),
             ("ThemeAurora", "Aurora"),

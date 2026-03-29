@@ -11,6 +11,7 @@ public static class AppThemeCatalog
     public static IReadOnlyList<string> ThemeKeys { get; } =
     [
         "glow",
+        "macos",
         "tide",
         "ember",
         "aurora",
@@ -30,6 +31,7 @@ public static class AppThemeCatalog
         new Dictionary<string, AppThemePalette>(StringComparer.OrdinalIgnoreCase)
         {
             ["glow"] = CreateGlowPalette(isDark: false),
+            ["macos"] = CreateMacosPalette(isDark: false),
             ["tide"] = CreateTidePalette(isDark: false),
             ["ember"] = CreateEmberPalette(isDark: false),
             ["aurora"] = CreateAuroraPalette(isDark: false),
@@ -47,6 +49,7 @@ public static class AppThemeCatalog
         new Dictionary<string, AppThemePalette>(StringComparer.OrdinalIgnoreCase)
         {
             ["glow"] = CreateGlowPalette(isDark: true),
+            ["macos"] = CreateMacosPalette(isDark: true),
             ["tide"] = CreateTidePalette(isDark: true),
             ["ember"] = CreateEmberPalette(isDark: true),
             ["aurora"] = CreateAuroraPalette(isDark: true),
@@ -232,6 +235,41 @@ public static class AppThemeCatalog
                 WindowChromeClosePressedBg: C("#EFDACE"),
                 WindowChromeClosePressedFg: C("#6F3E28"),
                 BufferPrefixBg: C("#E3EEF8"));
+    }
+
+    private static AppThemePalette CreateMacosPalette(bool isDark)
+    {
+        return isDark
+            ? CreateDerivedPalette(
+                isDark: true,
+                shellBg: "#151517",
+                shellPanel: "#1C1C1E",
+                shellPanelMuted: "#232326",
+                shellBorder: "#3A3A3C",
+                inkStrong: "#F5F5F7",
+                inkSoft: "#A1A1A6",
+                accentRust: "#FF6961",
+                accentTeal: "#0A84FF",
+                accentSky: "#25364A",
+                accentSand: "#2C2C2E",
+                backdropStart: "#111214",
+                backdropMid: "#1A1B1F",
+                backdropEnd: "#202329")
+            : CreateDerivedPalette(
+                isDark: false,
+                shellBg: "#F5F5F7",
+                shellPanel: "#FFFFFF",
+                shellPanelMuted: "#F2F2F7",
+                shellBorder: "#D2D2D7",
+                inkStrong: "#1D1D1F",
+                inkSoft: "#6E6E73",
+                accentRust: "#FF5F57",
+                accentTeal: "#0A84FF",
+                accentSky: "#EAF2FF",
+                accentSand: "#F2F2F7",
+                backdropStart: "#F7F7F9",
+                backdropMid: "#F3F6FB",
+                backdropEnd: "#EEF1F6");
     }
 
     private static AppThemePalette CreateEmberPalette(bool isDark)
