@@ -114,7 +114,7 @@
 
         <Style Selector="TextBlock.userMode">
             <Setter Property="Foreground" Value="{StaticResource InkSoft}" />
-            <Setter Property="FontFamily" Value="IBM Plex Mono, Consolas, monospace" />
+            <Setter Property="FontFamily" Value="{StaticResource MonoFontFamily}" />
             <Setter Property="FontSize" Value="12" />
         </Style>
 
@@ -747,7 +747,7 @@
                                                   Margin="0,1,0,0">
                                                 <TextBlock Text="{Binding TimestampText}"
                                                            Foreground="{StaticResource InkSoft}"
-                                                           FontFamily="IBM Plex Mono, Consolas, monospace"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
                                                            VerticalAlignment="Top" />
                                                 <TextBlock Grid.Column="1"
                                                            Text="{Binding SenderDisplay}"
