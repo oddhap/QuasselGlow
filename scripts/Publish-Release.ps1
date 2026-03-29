@@ -282,6 +282,28 @@ $iconBlock
     return $appBundlePath
 }
 
+function Set-MacAppBundleAdHocSignature {
+    param([string]$AppBundlePath)
+
+    if (-not (Test-IsMacOSHost)) {
+        return $false
+    }
+
+    if (-not (Test-CommandAvailable -Name "codesign")) {
+        Write-Warning "Skipping ad-hoc signing for $AppBundlePath because codesign is not available."
+        return $false
+    }
+
+    Invoke-External -FilePath "codesign" -Arguments @(
+        "--force",
+        "--deep",
+        "--sign", "-",
+        $AppBundlePath
+    )
+
+    return $true
+}
+
 function New-MacDmg {
     param(
         [string]$AppBundlePath,
@@ -418,6 +440,11 @@ foreach ($runtimeIdentifier in $RuntimeIdentifiers) {
             -DisplayVersion $displayVersion `
             -IconsDirectory $iconsDirectory `
             -TemporaryDirectory (Join-Path $stagingRoot "$runtimeIdentifier-mac")
+
+        $appBundleSigned = Set-MacAppBundleAdHocSignature -AppBundlePath $appBundlePath
+        if ($appBundleSigned) {
+            Write-Host "Applied ad-hoc code signature to $([System.IO.Path]::GetFileName($appBundlePath))"
+        }
 
         $appArchivePath = Join-Path $releaseRoot "$appName-$versionTag-$runtimeIdentifier-app.zip"
         New-ZipArchiveFromPath -SourcePath $appBundlePath -ArchivePath $appArchivePath
