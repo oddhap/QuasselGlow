@@ -361,7 +361,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     public string ControlPanelBufferPreviewText =>
         string.IsNullOrWhiteSpace(SelectedBuffer?.LastMessagePreview) ? _strings["NoMessagesYet"] : SelectedBuffer.LastMessagePreview;
 
-    public string ComposerContextText => SelectedBuffer?.DisplayName ?? _strings["SelectChannelOrQuery"];
+    public string ComposerContextText => SelectedBuffer?.DisplayName ?? string.Empty;
 
     public string TrayToolTipText
     {
