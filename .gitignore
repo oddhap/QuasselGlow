@@ -14,3 +14,4 @@ TestResults/
 *.pidb
 *.DS_Store
 Thumbs.db
+test-build/
