@@ -10,9 +10,9 @@
         x:CompileBindings="False"
         Width="1440"
         Height="920"
-        MinWidth="1180"
-        MinHeight="760"
-        SystemDecorations="BorderOnly"
+        MinWidth="920"
+        MinHeight="620"
+        SystemDecorations="Full"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         Icon="/Assets/Icons/quassel.ico"
@@ -337,9 +337,12 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Margin="18,14,18,14" ColumnSpacing="14">
+        <Grid Grid.Row="1"
+              Margin="18,14,18,14"
+              ColumnSpacing="14"
+              IsVisible="{Binding !IsCompactLayout}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280" />
+                <ColumnDefinition Width="240" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
@@ -576,9 +579,246 @@
             </Border>
         </Grid>
 
+        <StackPanel Grid.Row="1"
+                    Margin="18,14,18,14"
+                    Spacing="14"
+                    IsVisible="{Binding IsCompactLayout}">
+            <Border Classes="panel" Padding="18,14">
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="18">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="Quassel"
+                                   FontSize="28"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource InkStrong}" />
+                        <TextBlock Margin="0,-8,0,0"
+                                   Text="Glow"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentTeal}" />
+                    </StackPanel>
+
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding Strings[ThemeLabel]}"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource InkStrong}" />
+                            <TextBlock Text="{Binding ThemeSummaryText}"
+                                       Foreground="{StaticResource InkSoft}" />
+                        </StackPanel>
+
+                        <Button x:Name="ThemeEditButtonCompact"
+                                Grid.Column="1"
+                                Classes="infoToggle"
+                                Command="{Binding ToggleThemeEditorCommand}"
+                                Content="{Binding Strings[Settings]}" />
+                    </Grid>
+
+                    <primitives:Popup IsOpen="{Binding IsThemeEditorOpen, Mode=TwoWay}"
+                                      IsLightDismissEnabled="True"
+                                      PlacementTarget="{Binding #ThemeEditButtonCompact}"
+                                      Placement="BottomEdgeAlignedLeft"
+                                      VerticalOffset="12">
+                        <Border Classes="drawerShell"
+                                Width="420"
+                                Padding="18">
+                            <Grid RowDefinitions="Auto,Auto" RowSpacing="14">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding Strings[Settings]}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding ThemeSummaryText}"
+                                                   Foreground="{StaticResource InkSoft}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Classes="infoToggle"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding CloseThemeEditorCommand}"
+                                            Content="{Binding Strings[Close]}" />
+                                </Grid>
+
+                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
+                                    <Grid ColumnDefinitions="Auto,*,132" ColumnSpacing="12" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Strings[ThemeLabel]}"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource InkSoft}" />
+                                        <ComboBox Grid.Column="1"
+                                                  MinWidth="180"
+                                                  ItemsSource="{Binding SupportedThemes}"
+                                                  SelectedItem="{Binding SelectedTheme}" />
+                                        <ComboBox Grid.Column="2"
+                                                  MinWidth="132"
+                                                  ItemsSource="{Binding SupportedThemeModes}"
+                                                  SelectedItem="{Binding SelectedThemeMode}" />
+                                    </Grid>
+
+                                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Strings[LanguageLabel]}"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{StaticResource InkSoft}" />
+                                        <ComboBox Grid.Column="1"
+                                                  MinWidth="220"
+                                                  ItemsSource="{Binding SupportedLanguages}"
+                                                  SelectedValueBinding="{Binding Code}"
+                                                  SelectedValue="{Binding SelectedLanguageCode}" />
+                                    </Grid>
+
+                                    <CheckBox Grid.Row="2"
+                                              Content="{Binding Strings[MinimizeToTray]}"
+                                              IsChecked="{Binding MinimizeToTrayEnabled}" />
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </primitives:Popup>
+                </Grid>
+            </Border>
+
+            <Border Classes="panel" Padding="18,14">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Width="12"
+                            Height="12"
+                            VerticalAlignment="Center"
+                            CornerRadius="6"
+                            Background="{Binding ConnectionBrush}" />
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="2">
+                        <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ConnectionStatusDetailText}"
+                                   Foreground="{StaticResource InkSoft}" />
+                    </StackPanel>
+                    <Border Grid.Column="2"
+                            MinWidth="148"
+                            Padding="12,6"
+                            CornerRadius="999"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Background="{StaticResource AccentSand}">
+                        <TextBlock Text="{Binding CurrentNetworkText}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Center"
+                                   Foreground="{StaticResource InkStrong}" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Classes="panel" Padding="16,14">
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="12">
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding Strings[Connection]}"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource InkStrong}" />
+                            <TextBlock Text="{Binding SessionSummaryText}"
+                                       Foreground="{StaticResource InkSoft}" />
+                        </StackPanel>
+
+                        <Button x:Name="ConnectionEditButtonCompact"
+                                Grid.Column="1"
+                                Classes="infoToggle"
+                                Command="{Binding ToggleConnectionEditorCommand}"
+                                Content="{Binding Strings[Edit]}" />
+
+                        <Button Grid.Column="2"
+                                Background="{StaticResource AccentTeal}"
+                                Foreground="White"
+                                Command="{Binding ConnectCommand}"
+                                Content="{Binding Strings[Connect]}"
+                                IsVisible="{Binding ShowConnectAction}" />
+
+                        <Button Grid.Column="2"
+                                Background="{StaticResource AccentRust}"
+                                Foreground="White"
+                                Command="{Binding DisconnectCommand}"
+                                Content="{Binding Strings[Disconnect]}"
+                                IsVisible="{Binding ShowDisconnectAction}" />
+                    </Grid>
+
+                    <StackPanel Grid.Row="1"
+                                Orientation="Horizontal"
+                                Spacing="8">
+                        <Border Classes="connectionChip">
+                            <TextBlock Text="{Binding ConnectionEndpointText}"
+                                       Foreground="{StaticResource InkStrong}" />
+                        </Border>
+                        <Border Classes="connectionChip">
+                            <TextBlock Text="{Binding ConnectionIdentityText}"
+                                       Foreground="{StaticResource InkStrong}" />
+                        </Border>
+                        <Border Classes="connectionChip">
+                            <TextBlock Text="{Binding TlsModeText}"
+                                       Foreground="{StaticResource InkStrong}" />
+                        </Border>
+                    </StackPanel>
+
+                    <primitives:Popup IsOpen="{Binding IsConnectionEditorOpen, Mode=TwoWay}"
+                                      IsLightDismissEnabled="True"
+                                      PlacementTarget="{Binding #ConnectionEditButtonCompact}"
+                                      Placement="BottomEdgeAlignedRight"
+                                      VerticalOffset="12">
+                        <Border Classes="drawerShell"
+                                Width="500"
+                                Padding="18">
+                            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="14">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding Strings[EditConnection]}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Strings[ConnectionEditorSubtitle]}"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{StaticResource InkSoft}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Classes="infoToggle"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding CloseConnectionEditorCommand}"
+                                            Content="{Binding Strings[Close]}" />
+                                </Grid>
+
+                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto" RowSpacing="10">
+                                    <Grid ColumnDefinitions="*,96" ColumnSpacing="10">
+                                        <TextBox Watermark="{Binding Strings[Host]}"
+                                                 Text="{Binding Host}" />
+                                        <TextBox Grid.Column="1"
+                                                 Watermark="{Binding Strings[Port]}"
+                                                 Text="{Binding PortText}" />
+                                    </Grid>
+
+                                    <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="10">
+                                        <TextBox Watermark="{Binding Strings[Username]}"
+                                                 Text="{Binding Username}" />
+                                        <TextBox Grid.Column="1"
+                                                 Watermark="{Binding Strings[Password]}"
+                                                 PasswordChar="*"
+                                                 Text="{Binding Password}" />
+                                    </Grid>
+
+                                </Grid>
+
+                                <StackPanel Grid.Row="2"
+                                            Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="12"
+                                                VerticalAlignment="Center">
+                                        <CheckBox VerticalAlignment="Center"
+                                                  Content="{Binding Strings[RememberLogin]}"
+                                                  IsChecked="{Binding RememberLogin}" />
+                                        <CheckBox VerticalAlignment="Center"
+                                                  Content="{Binding Strings[AllowInsecureTls]}"
+                                                  IsChecked="{Binding TrustInvalidCertificates}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </primitives:Popup>
+                </Grid>
+            </Border>
+        </StackPanel>
+
         <Grid Grid.Row="2" Margin="18,0,18,14" ColumnSpacing="14">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280" />
+                <ColumnDefinition Width="240" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Border Classes="panel">
@@ -717,7 +957,7 @@
             <SplitView Grid.Column="1"
                        IsPaneOpen="{Binding IsControlPanelOpen}"
                        DisplayMode="{Binding UserListDisplayMode}"
-                       OpenPaneLength="320"
+                       OpenPaneLength="280"
                        PanePlacement="Right"
                        PaneBackground="Transparent"
                        UseLightDismissOverlayMode="{Binding UseOverlayDismissForUserList}">
@@ -785,7 +1025,7 @@
                 </SplitView.Content>
 
                 <SplitView.Pane>
-                    <Border Width="320"
+                    <Border Width="280"
                             Margin="14,0,0,0"
                             Background="Transparent">
                         <Border Classes="drawerShell" Padding="0">
@@ -901,10 +1141,13 @@
             </SplitView>
         </Grid>
 
-        <Border Grid.Row="3" Margin="18,0,18,18" Classes="panel">
+        <Border Grid.Row="3"
+                Margin="18,0,18,18"
+                Classes="panel"
+                IsVisible="{Binding !IsCompactLayout}">
             <Grid ColumnSpacing="14">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="226" />
+                    <ColumnDefinition Width="180" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -925,11 +1168,43 @@
                 </TextBox>
 
                 <Button Grid.Column="2"
-                        Width="132"
+                        MinWidth="112"
                         Background="{StaticResource AccentRust}"
                         Foreground="White"
                         Command="{Binding SendMessageCommand}"
                         Content="{Binding Strings[Send]}" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="3"
+                Margin="18,0,18,18"
+                Classes="panel"
+                IsVisible="{Binding IsCompactLayout}">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="12">
+                <Border Padding="12,10"
+                        Classes="panel muted">
+                    <TextBlock Text="{Binding ComposerContextText}"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource InkSoft}"
+                               VerticalAlignment="Center" />
+                </Border>
+
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBox Watermark="{Binding Strings[JoinOrType]}"
+                             Text="{Binding DraftMessage}"
+                             IsEnabled="{Binding SelectedBuffer.AcceptsInput}">
+                        <TextBox.KeyBindings>
+                            <KeyBinding Gesture="Enter" Command="{Binding SendMessageCommand}" />
+                        </TextBox.KeyBindings>
+                    </TextBox>
+
+                    <Button Grid.Column="1"
+                            MinWidth="112"
+                            Background="{StaticResource AccentRust}"
+                            Foreground="White"
+                            Command="{Binding SendMessageCommand}"
+                            Content="{Binding Strings[Send]}" />
+                </Grid>
             </Grid>
         </Border>
     </Grid>

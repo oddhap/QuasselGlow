@@ -68,6 +68,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     [ObservableProperty]
     private bool _isUserListPinned;
 
+    private bool _isCompactLayout;
+
     [ObservableProperty]
     private string _statusText = UiTextCatalog.Instance["StatusDisconnected"];
 
@@ -323,11 +325,24 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public bool ShowSelectedChannelUsersUnavailable => SelectedBuffer is not null && !SelectedBufferSupportsUserList;
 
-    public SplitViewDisplayMode UserListDisplayMode => IsUserListPinned ? SplitViewDisplayMode.Inline : SplitViewDisplayMode.Overlay;
+    public SplitViewDisplayMode UserListDisplayMode => IsUserListPinned && !IsCompactLayout
+        ? SplitViewDisplayMode.Inline
+        : SplitViewDisplayMode.Overlay;
 
-    public bool UseOverlayDismissForUserList => !IsUserListPinned;
+    public bool IsCompactLayout => _isCompactLayout;
+
+    public bool UseOverlayDismissForUserList => IsCompactLayout || !IsUserListPinned;
 
     public string UserListPinButtonText => _strings[IsUserListPinned ? "Unpin" : "Pin"];
+
+    public void SetCompactLayout(bool isCompact)
+    {
+        if (SetProperty(ref _isCompactLayout, isCompact))
+        {
+            OnPropertyChanged(nameof(UserListDisplayMode));
+            OnPropertyChanged(nameof(UseOverlayDismissForUserList));
+        }
+    }
 
     public string UserListStatusText
     {

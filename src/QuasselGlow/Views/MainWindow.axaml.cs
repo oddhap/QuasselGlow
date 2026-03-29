@@ -13,6 +13,7 @@ namespace QuasselGlow.Views;
 
 public partial class MainWindow : Window
 {
+    private const double CompactLayoutWidthThreshold = 1180;
     private MainWindowViewModel? _viewModel;
     private BufferItemViewModel? _observedBuffer;
     private ScrollViewer? _chatScrollHost;
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
         Opened += OnOpened;
+        SizeChanged += OnWindowSizeChanged;
         Activated += OnActivated;
         Deactivated += OnDeactivated;
         Closed += OnClosed;
@@ -41,6 +43,7 @@ public partial class MainWindow : Window
         EnsureTrayIcon();
         UpdateTrayState();
         UpdateWindowChrome(WindowState);
+        UpdateResponsiveLayout();
         _viewModel?.SetForegroundState(true);
     }
 
@@ -60,6 +63,7 @@ public partial class MainWindow : Window
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         AttachToViewModel(DataContext as MainWindowViewModel);
+        UpdateResponsiveLayout();
     }
 
     private void AttachToViewModel(MainWindowViewModel? viewModel)
@@ -272,6 +276,7 @@ public partial class MainWindow : Window
     {
         DataContextChanged -= OnDataContextChanged;
         Opened -= OnOpened;
+        SizeChanged -= OnWindowSizeChanged;
         Activated -= OnActivated;
         Deactivated -= OnDeactivated;
         Closed -= OnClosed;
@@ -289,6 +294,16 @@ public partial class MainWindow : Window
         {
             await asyncDisposable.DisposeAsync();
         }
+    }
+
+    private void OnWindowSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        UpdateResponsiveLayout();
+    }
+
+    private void UpdateResponsiveLayout()
+    {
+        _viewModel?.SetCompactLayout(ClientSize.Width < CompactLayoutWidthThreshold);
     }
 
     private void AttachChatScrollHost()
