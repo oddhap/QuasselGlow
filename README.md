@@ -4,6 +4,24 @@ QuasselGlow is a cross-platform desktop client for the Quassel protocol, built w
 
 The project aims to offer a modern desktop experience inspired by classic IRC clients while staying lightweight, responsive, and usable on Windows, Linux, and macOS.
 
+## Screenshots
+
+### Light Theme
+
+![QuasselGlow light overview](docs/screenshots/light-overview.png)
+
+### Dark Theme
+
+![QuasselGlow dark overview](docs/screenshots/dark-overview.png)
+
+### Settings
+
+![QuasselGlow settings](docs/screenshots/settings.png)
+
+### Connection View
+
+![QuasselGlow connection view](docs/screenshots/connection.png)
+
 ## Status
 
 QuasselGlow is an early-stage project. The current build includes:
