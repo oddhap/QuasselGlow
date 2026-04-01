@@ -293,6 +293,42 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void PlatformAndInspiredThemes_AppearWithDisplayNames()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var expectedThemes = new[]
+        {
+            ("windows7", "Windows 7"),
+            ("windows10", "Windows 10"),
+            ("windows11", "Windows 11"),
+            ("ubuntu", "Ubuntu"),
+            ("cobalt", "Cobalt"),
+            ("slate", "Slate"),
+            ("frost", "Frost"),
+            ("aubergine", "Aubergine")
+        };
+
+        foreach (var (key, displayName) in expectedThemes)
+        {
+            var option = Assert.Single(viewModel.SupportedThemes, theme => theme.Key == key);
+            Assert.Equal(displayName, option.DisplayName);
+
+            viewModel.SelectedThemeKey = key;
+            Assert.Equal(displayName, viewModel.SelectedTheme?.DisplayName);
+        }
+
+        viewModel.SelectedLanguageCode = "nb";
+
+        foreach (var (key, displayName) in expectedThemes)
+        {
+            viewModel.SelectedThemeKey = key;
+            Assert.Equal(displayName, viewModel.SelectedTheme?.DisplayName);
+        }
+    }
+
+    [Fact]
     public void ToggleThemeEditor_ClosesConnectionEditorAndUpdatesThemeSummary()
     {
         var session = new FakeSessionService();

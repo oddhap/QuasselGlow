@@ -12,6 +12,14 @@ public static class AppThemeCatalog
     [
         "glow",
         "macos",
+        "windows7",
+        "windows10",
+        "windows11",
+        "ubuntu",
+        "cobalt",
+        "slate",
+        "frost",
+        "aubergine",
         "tide",
         "ember",
         "aurora",
@@ -32,6 +40,14 @@ public static class AppThemeCatalog
         {
             ["glow"] = CreateGlowPalette(isDark: false),
             ["macos"] = CreateMacosPalette(isDark: false),
+            ["windows7"] = CreateWindows7Palette(isDark: false),
+            ["windows10"] = CreateWindows10Palette(isDark: false),
+            ["windows11"] = CreateWindows11Palette(isDark: false),
+            ["ubuntu"] = CreateUbuntuPalette(isDark: false),
+            ["cobalt"] = CreateCobaltPalette(isDark: false),
+            ["slate"] = CreateSlatePalette(isDark: false),
+            ["frost"] = CreateFrostPalette(isDark: false),
+            ["aubergine"] = CreateAuberginePalette(isDark: false),
             ["tide"] = CreateTidePalette(isDark: false),
             ["ember"] = CreateEmberPalette(isDark: false),
             ["aurora"] = CreateAuroraPalette(isDark: false),
@@ -50,6 +66,14 @@ public static class AppThemeCatalog
         {
             ["glow"] = CreateGlowPalette(isDark: true),
             ["macos"] = CreateMacosPalette(isDark: true),
+            ["windows7"] = CreateWindows7Palette(isDark: true),
+            ["windows10"] = CreateWindows10Palette(isDark: true),
+            ["windows11"] = CreateWindows11Palette(isDark: true),
+            ["ubuntu"] = CreateUbuntuPalette(isDark: true),
+            ["cobalt"] = CreateCobaltPalette(isDark: true),
+            ["slate"] = CreateSlatePalette(isDark: true),
+            ["frost"] = CreateFrostPalette(isDark: true),
+            ["aubergine"] = CreateAuberginePalette(isDark: true),
             ["tide"] = CreateTidePalette(isDark: true),
             ["ember"] = CreateEmberPalette(isDark: true),
             ["aurora"] = CreateAuroraPalette(isDark: true),
@@ -270,6 +294,286 @@ public static class AppThemeCatalog
                 backdropStart: "#F7F7F9",
                 backdropMid: "#F3F6FB",
                 backdropEnd: "#EEF1F6");
+    }
+
+    private static AppThemePalette CreateWindows7Palette(bool isDark)
+    {
+        return isDark
+            ? CreateDerivedPalette(
+                isDark: true,
+                shellBg: "#0F1725",
+                shellPanel: "#142134",
+                shellPanelMuted: "#101A2A",
+                shellBorder: "#38516E",
+                inkStrong: "#F5FAFF",
+                inkSoft: "#B4C6DA",
+                accentRust: "#E6B458",
+                accentTeal: "#4B97E8",
+                accentSky: "#1D344E",
+                accentSand: "#31394B",
+                backdropStart: "#0E1624",
+                backdropMid: "#12345B",
+                backdropEnd: "#2A3345")
+            : CreateDerivedPalette(
+                isDark: false,
+                shellBg: "#EEF4FB",
+                shellPanel: "#FBFDFF",
+                shellPanelMuted: "#DDE9F6",
+                shellBorder: "#A7BDD2",
+                inkStrong: "#20364E",
+                inkSoft: "#617A92",
+                accentRust: "#D6A13B",
+                accentTeal: "#3A82D6",
+                accentSky: "#DCEAF8",
+                accentSand: "#F7E8C7",
+                backdropStart: "#F5F9FE",
+                backdropMid: "#DCEAF8",
+                backdropEnd: "#F3EEDC");
+    }
+
+    private static AppThemePalette CreateCobaltPalette(bool isDark)
+    {
+        return isDark
+            ? CreateDerivedPalette(
+                isDark: true,
+                shellBg: "#101722",
+                shellPanel: "#162131",
+                shellPanelMuted: "#121B28",
+                shellBorder: "#355072",
+                inkStrong: "#F4F8FD",
+                inkSoft: "#AABBD1",
+                accentRust: "#F0B35C",
+                accentTeal: "#69B3FF",
+                accentSky: "#223850",
+                accentSand: "#2B3140",
+                backdropStart: "#101722",
+                backdropMid: "#163860",
+                backdropEnd: "#2A3244")
+            : CreateDerivedPalette(
+                isDark: false,
+                shellBg: "#F5F8FD",
+                shellPanel: "#FFFFFF",
+                shellPanelMuted: "#E8EFF8",
+                shellBorder: "#AFC2DB",
+                inkStrong: "#1E2D40",
+                inkSoft: "#5F738A",
+                accentRust: "#C98A37",
+                accentTeal: "#2B78D6",
+                accentSky: "#DDEAF9",
+                accentSand: "#F5E8C9",
+                backdropStart: "#F7FAFF",
+                backdropMid: "#EAF2FB",
+                backdropEnd: "#F3EEDC");
+    }
+
+    private static AppThemePalette CreateWindows10Palette(bool isDark)
+    {
+        return isDark
+            ? CreateDerivedPalette(
+                isDark: true,
+                shellBg: "#111111",
+                shellPanel: "#1B1B1B",
+                shellPanelMuted: "#151515",
+                shellBorder: "#303030",
+                inkStrong: "#FAFAFA",
+                inkSoft: "#B5B5B5",
+                accentRust: "#E81123",
+                accentTeal: "#0078D7",
+                accentSky: "#1B2D40",
+                accentSand: "#262626",
+                backdropStart: "#101010",
+                backdropMid: "#141C24",
+                backdropEnd: "#181818")
+            : CreateDerivedPalette(
+                isDark: false,
+                shellBg: "#F2F2F2",
+                shellPanel: "#FFFFFF",
+                shellPanelMuted: "#F3F3F3",
+                shellBorder: "#D9D9D9",
+                inkStrong: "#1F1F1F",
+                inkSoft: "#5F5F5F",
+                accentRust: "#E81123",
+                accentTeal: "#0078D7",
+                accentSky: "#E5F1FB",
+                accentSand: "#F3F3F3",
+                backdropStart: "#F6F6F6",
+                backdropMid: "#EEF3F7",
+                backdropEnd: "#E8EEF4");
+    }
+
+    private static AppThemePalette CreateSlatePalette(bool isDark)
+    {
+        return isDark
+            ? CreateDerivedPalette(
+                isDark: true,
+                shellBg: "#101317",
+                shellPanel: "#171C22",
+                shellPanelMuted: "#12161B",
+                shellBorder: "#2E3844",
+                inkStrong: "#F5F7FA",
+                inkSoft: "#A9B2BD",
+                accentRust: "#F7630C",
+                accentTeal: "#0078D4",
+                accentSky: "#1A2C3F",
+                accentSand: "#202B37",
+                backdropStart: "#101317",
+                backdropMid: "#112338",
+                backdropEnd: "#18212A")
+            : CreateDerivedPalette(
+                isDark: false,
+                shellBg: "#F4F7FB",
+                shellPanel: "#FFFFFF",
+                shellPanelMuted: "#E9EEF5",
+                shellBorder: "#C9D4DF",
+                inkStrong: "#18222D",
+                inkSoft: "#5A6877",
+                accentRust: "#D83B01",
+                accentTeal: "#0067C0",
+                accentSky: "#DCEBF9",
+                accentSand: "#EDF2F7",
+                backdropStart: "#F5F8FB",
+                backdropMid: "#EAF1F8",
+                backdropEnd: "#E5EEF8");
+    }
+
+    private static AppThemePalette CreateWindows11Palette(bool isDark)
+    {
+        return isDark
+            ? CreateDerivedPalette(
+                isDark: true,
+                shellBg: "#111318",
+                shellPanel: "#1B1F26",
+                shellPanelMuted: "#151920",
+                shellBorder: "#313847",
+                inkStrong: "#F5F7FA",
+                inkSoft: "#AEB7C4",
+                accentRust: "#E88A73",
+                accentTeal: "#6EA8FF",
+                accentSky: "#20283A",
+                accentSand: "#20242C",
+                backdropStart: "#111318",
+                backdropMid: "#151C28",
+                backdropEnd: "#1D2433")
+            : CreateDerivedPalette(
+                isDark: false,
+                shellBg: "#F3F5F9",
+                shellPanel: "#FFFFFF",
+                shellPanelMuted: "#F5F7FB",
+                shellBorder: "#D9E2F0",
+                inkStrong: "#1C1F26",
+                inkSoft: "#6B7280",
+                accentRust: "#E57D73",
+                accentTeal: "#2563EB",
+                accentSky: "#EAF1FF",
+                accentSand: "#EEF2F8",
+                backdropStart: "#F7F9FC",
+                backdropMid: "#F0F4FB",
+                backdropEnd: "#EDF2FF");
+    }
+
+    private static AppThemePalette CreateFrostPalette(bool isDark)
+    {
+        return isDark
+            ? CreateDerivedPalette(
+                isDark: true,
+                shellBg: "#0F1115",
+                shellPanel: "#171A20",
+                shellPanelMuted: "#12151A",
+                shellBorder: "#2B313B",
+                inkStrong: "#F5F7FB",
+                inkSoft: "#AAB3C2",
+                accentRust: "#F1A065",
+                accentTeal: "#6F9BFF",
+                accentSky: "#20273A",
+                accentSand: "#212733",
+                backdropStart: "#0F1115",
+                backdropMid: "#171D29",
+                backdropEnd: "#1C2432")
+            : CreateDerivedPalette(
+                isDark: false,
+                shellBg: "#F7F9FD",
+                shellPanel: "#FFFFFF",
+                shellPanelMuted: "#EFF3F9",
+                shellBorder: "#D7DFEA",
+                inkStrong: "#1A2230",
+                inkSoft: "#626C7C",
+                accentRust: "#E6845E",
+                accentTeal: "#2F6FEB",
+                accentSky: "#E8EEFF",
+                accentSand: "#EEF3FB",
+                backdropStart: "#F8FAFD",
+                backdropMid: "#F1F5FB",
+                backdropEnd: "#EEF1FF");
+    }
+
+    private static AppThemePalette CreateUbuntuPalette(bool isDark)
+    {
+        return isDark
+            ? CreateDerivedPalette(
+                isDark: true,
+                shellBg: "#1D1B22",
+                shellPanel: "#26212E",
+                shellPanelMuted: "#1F1B27",
+                shellBorder: "#4B4056",
+                inkStrong: "#F8F3F8",
+                inkSoft: "#C7BBCB",
+                accentRust: "#E95420",
+                accentTeal: "#C061CB",
+                accentSky: "#382529",
+                accentSand: "#34263A",
+                backdropStart: "#1A1720",
+                backdropMid: "#261E2B",
+                backdropEnd: "#2C2434")
+            : CreateDerivedPalette(
+                isDark: false,
+                shellBg: "#F8F5F5",
+                shellPanel: "#FFFFFF",
+                shellPanelMuted: "#F1ECEB",
+                shellBorder: "#D6C7C2",
+                inkStrong: "#2C1F26",
+                inkSoft: "#6C5B64",
+                accentRust: "#E95420",
+                accentTeal: "#77216F",
+                accentSky: "#F8E5DE",
+                accentSand: "#F3E7F3",
+                backdropStart: "#FBF7F6",
+                backdropMid: "#F8EEE9",
+                backdropEnd: "#F3E9F4");
+    }
+
+    private static AppThemePalette CreateAuberginePalette(bool isDark)
+    {
+        return isDark
+            ? CreateDerivedPalette(
+                isDark: true,
+                shellBg: "#160F17",
+                shellPanel: "#211722",
+                shellPanelMuted: "#1A121B",
+                shellBorder: "#493349",
+                inkStrong: "#FAF1F8",
+                inkSoft: "#C8B2C3",
+                accentRust: "#FF6D3A",
+                accentTeal: "#B774D0",
+                accentSky: "#382128",
+                accentSand: "#32203A",
+                backdropStart: "#160F17",
+                backdropMid: "#261426",
+                backdropEnd: "#2C1C33")
+            : CreateDerivedPalette(
+                isDark: false,
+                shellBg: "#FFF7F4",
+                shellPanel: "#FFFCFB",
+                shellPanelMuted: "#F7ECEB",
+                shellBorder: "#E4D1CF",
+                inkStrong: "#2E2027",
+                inkSoft: "#7A6370",
+                accentRust: "#E95420",
+                accentTeal: "#77216F",
+                accentSky: "#F8E7DF",
+                accentSand: "#F4E6F2",
+                backdropStart: "#FFF7F4",
+                backdropMid: "#FFF0EA",
+                backdropEnd: "#F7EDF8");
     }
 
     private static AppThemePalette CreateEmberPalette(bool isDark)
