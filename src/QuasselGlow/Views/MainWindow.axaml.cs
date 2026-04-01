@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -16,6 +17,8 @@ public partial class MainWindow : Window
 {
     private const double CompactLayoutWidthThreshold = 1180;
     private const double LowResolutionHeightThreshold = 820;
+    public bool IsMacOsPlatform { get; } = OperatingSystem.IsMacOS();
+    public bool IsNonMacOsPlatform => !OperatingSystem.IsMacOS();
     private MainWindowViewModel? _viewModel;
     private BufferItemViewModel? _observedBuffer;
     private ScrollViewer? _chatScrollHost;
@@ -31,6 +34,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         DataContextChanged += OnDataContextChanged;
         Opened += OnOpened;
         SizeChanged += OnWindowSizeChanged;
@@ -366,6 +370,17 @@ public partial class MainWindow : Window
         Close();
     }
 
+    private void OnWindowKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!IsQuitApplicationGesture(e))
+        {
+            return;
+        }
+
+        ShutdownApplication();
+        e.Handled = true;
+    }
+
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.Source is Visual sourceVisual
@@ -620,6 +635,25 @@ public partial class MainWindow : Window
     }
 
     private void OnTrayQuitClick(object? sender, EventArgs e)
+    {
+        ShutdownApplication();
+    }
+
+    private static bool IsQuitApplicationGesture(KeyEventArgs e)
+    {
+        if (!OperatingSystem.IsMacOS() || e.Key != Key.Q)
+        {
+            return false;
+        }
+
+        var modifiers = e.KeyModifiers;
+        return modifiers.HasFlag(KeyModifiers.Meta)
+            && !modifiers.HasFlag(KeyModifiers.Control)
+            && !modifiers.HasFlag(KeyModifiers.Alt)
+            && !modifiers.HasFlag(KeyModifiers.Shift);
+    }
+
+    private void ShutdownApplication()
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
