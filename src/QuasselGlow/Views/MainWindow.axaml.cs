@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using QuasselGlow.Platform;
 using QuasselGlow.ViewModels;
 
 namespace QuasselGlow.Views;
@@ -23,6 +24,7 @@ public partial class MainWindow : Window
     private bool _isAutoScrolling;
     private bool _stickToBottom = true;
     private bool _isHidingToTray;
+    private bool _isHiddenToTray;
     private int _autoScrollRequestId;
 
     public MainWindow()
@@ -482,6 +484,8 @@ public partial class MainWindow : Window
             ShowInTaskbar = false;
             WindowState = WindowState.Normal;
             Hide();
+            _isHiddenToTray = true;
+            MacDockIconController.SetDockIconVisible(false);
             _viewModel?.SetForegroundState(false);
         }
         finally
@@ -492,6 +496,12 @@ public partial class MainWindow : Window
 
     private void RestoreFromTray()
     {
+        if (_isHiddenToTray)
+        {
+            MacDockIconController.SetDockIconVisible(true);
+            _isHiddenToTray = false;
+        }
+
         ShowInTaskbar = true;
 
         if (!IsVisible)
