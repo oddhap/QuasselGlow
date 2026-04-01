@@ -335,6 +335,53 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void LowResolutionLayout_HidesInlinePanelsAndUsesOverviewOverlay()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        viewModel.SetCompactLayout(true);
+        viewModel.SetLowResolutionLayout(true);
+
+        Assert.False(viewModel.ShowDesktopTopPanels);
+        Assert.False(viewModel.ShowCompactTopPanels);
+        Assert.True(viewModel.ShowLowResolutionOverviewButton);
+        Assert.False(viewModel.ShowLowResolutionOverview);
+
+        viewModel.ToggleOverviewCommand.Execute(null);
+
+        Assert.True(viewModel.ShowLowResolutionOverview);
+
+        viewModel.CloseOverviewCommand.Execute(null);
+
+        Assert.False(viewModel.ShowLowResolutionOverview);
+    }
+
+    [Fact]
+    public void ThemeEditor_UsesLowResolutionOverlayWhenNeeded()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        viewModel.SetCompactLayout(true);
+        viewModel.SetLowResolutionLayout(true);
+
+        viewModel.ToggleThemeEditorCommand.Execute(null);
+
+        Assert.True(viewModel.ShowLowResolutionOverview);
+        Assert.True(viewModel.ShowLowResolutionThemeEditor);
+        Assert.False(viewModel.ShowCompactThemeEditor);
+        Assert.False(viewModel.ShowDesktopThemeEditor);
+
+        viewModel.CloseOverviewCommand.Execute(null);
+
+        Assert.False(viewModel.IsThemeEditorOpen);
+        Assert.False(viewModel.ShowLowResolutionOverview);
+    }
+
+    [Fact]
     public void ChangingLanguage_PreservesLocalizedThemeModeSelection()
     {
         var session = new FakeSessionService();

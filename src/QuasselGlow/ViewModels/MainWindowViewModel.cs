@@ -71,6 +71,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private bool _isUserListPinned;
 
     private bool _isCompactLayout;
+    private bool _isLowResolutionLayout;
+
+    [ObservableProperty]
+    private bool _isOverviewOpen;
 
     [ObservableProperty]
     private string _statusText = UiTextCatalog.Instance["StatusDisconnected"];
@@ -280,13 +284,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     public string ThemeSummaryText =>
         $"{SelectedTheme?.DisplayName ?? _strings["ThemeLabel"]} / {SelectedThemeMode?.DisplayName ?? _strings["ThemeModeLabel"]}";
 
-    public bool ShowDesktopThemeEditor => IsThemeEditorOpen && !IsCompactLayout;
+    public bool ShowDesktopThemeEditor => IsThemeEditorOpen && !IsCompactLayout && !IsLowResolutionLayout;
 
-    public bool ShowCompactThemeEditor => IsThemeEditorOpen && IsCompactLayout;
+    public bool ShowCompactThemeEditor => IsThemeEditorOpen && IsCompactLayout && !IsLowResolutionLayout;
 
-    public bool ShowDesktopConnectionEditor => IsConnectionEditorOpen && !IsCompactLayout;
+    public bool ShowLowResolutionThemeEditor => IsThemeEditorOpen && IsLowResolutionLayout;
 
-    public bool ShowCompactConnectionEditor => IsConnectionEditorOpen && IsCompactLayout;
+    public bool ShowDesktopConnectionEditor => IsConnectionEditorOpen && !IsCompactLayout && !IsLowResolutionLayout;
+
+    public bool ShowCompactConnectionEditor => IsConnectionEditorOpen && IsCompactLayout && !IsLowResolutionLayout;
+
+    public bool ShowLowResolutionConnectionEditor => IsConnectionEditorOpen && IsLowResolutionLayout;
+
+    public bool ShowDesktopTopPanels => !IsCompactLayout && !IsLowResolutionLayout;
+
+    public bool ShowCompactTopPanels => IsCompactLayout && !IsLowResolutionLayout;
+
+    public bool ShowLowResolutionOverviewButton => IsLowResolutionLayout;
+
+    public bool ShowLowResolutionOverview => IsLowResolutionLayout && IsOverviewOpen;
 
     public string CurrentSelectionText => SelectedBuffer?.DisplayName ?? _strings["SelectBufferToStart"];
 
@@ -344,6 +360,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public bool IsCompactLayout => _isCompactLayout;
 
+    public bool IsLowResolutionLayout => _isLowResolutionLayout;
+
     public bool UseOverlayDismissForUserList => IsCompactLayout || !IsUserListPinned;
 
     public string UserListPinButtonText => _strings[IsUserListPinned ? "Unpin" : "Pin"];
@@ -352,13 +370,30 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     {
         if (SetProperty(ref _isCompactLayout, isCompact))
         {
-            OnPropertyChanged(nameof(ShowDesktopConnectionEditor));
-            OnPropertyChanged(nameof(ShowCompactConnectionEditor));
-            OnPropertyChanged(nameof(ShowDesktopThemeEditor));
-            OnPropertyChanged(nameof(ShowCompactThemeEditor));
+            RaiseLayoutPresentationPropertiesChanged();
             OnPropertyChanged(nameof(UserListDisplayMode));
             OnPropertyChanged(nameof(UseOverlayDismissForUserList));
         }
+    }
+
+    public void SetLowResolutionLayout(bool isLowResolution)
+    {
+        if (!SetProperty(ref _isLowResolutionLayout, isLowResolution))
+        {
+            return;
+        }
+
+        if (isLowResolution)
+        {
+            IsThemeEditorOpen = false;
+            IsConnectionEditorOpen = false;
+        }
+        else
+        {
+            CloseOverview();
+        }
+
+        RaiseLayoutPresentationPropertiesChanged();
     }
 
     public string UserListStatusText
@@ -712,6 +747,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         if (shouldOpen)
         {
             IsThemeEditorOpen = false;
+            if (IsLowResolutionLayout)
+            {
+                IsOverviewOpen = true;
+            }
         }
 
         IsConnectionEditorOpen = shouldOpen;
@@ -730,6 +769,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         if (shouldOpen)
         {
             IsConnectionEditorOpen = false;
+            if (IsLowResolutionLayout)
+            {
+                IsOverviewOpen = true;
+            }
         }
 
         IsThemeEditorOpen = shouldOpen;
@@ -739,6 +782,31 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private void CloseThemeEditor()
     {
         IsThemeEditorOpen = false;
+    }
+
+    [RelayCommand]
+    private void ToggleOverview()
+    {
+        if (!IsLowResolutionLayout)
+        {
+            return;
+        }
+
+        if (IsOverviewOpen)
+        {
+            CloseOverview();
+            return;
+        }
+
+        IsOverviewOpen = true;
+    }
+
+    [RelayCommand]
+    private void CloseOverview()
+    {
+        IsThemeEditorOpen = false;
+        IsConnectionEditorOpen = false;
+        IsOverviewOpen = false;
     }
 
     public async ValueTask DisposeAsync()
@@ -779,10 +847,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         SaveSettingsIfReady();
     }
 
+    partial void OnIsOverviewOpenChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowLowResolutionOverview));
+    }
+
     partial void OnIsThemeEditorOpenChanged(bool value)
     {
         OnPropertyChanged(nameof(ShowDesktopThemeEditor));
         OnPropertyChanged(nameof(ShowCompactThemeEditor));
+        OnPropertyChanged(nameof(ShowLowResolutionThemeEditor));
         SaveSettingsIfReady();
     }
 
@@ -790,6 +864,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     {
         OnPropertyChanged(nameof(ShowDesktopConnectionEditor));
         OnPropertyChanged(nameof(ShowCompactConnectionEditor));
+        OnPropertyChanged(nameof(ShowLowResolutionConnectionEditor));
         SaveSettingsIfReady();
     }
 
@@ -1708,6 +1783,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private static string BuildNickBanMask(string nick)
     {
         return $"{nick.Trim()}!*@*";
+    }
+
+    private void RaiseLayoutPresentationPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(ShowDesktopConnectionEditor));
+        OnPropertyChanged(nameof(ShowCompactConnectionEditor));
+        OnPropertyChanged(nameof(ShowLowResolutionConnectionEditor));
+        OnPropertyChanged(nameof(ShowDesktopThemeEditor));
+        OnPropertyChanged(nameof(ShowCompactThemeEditor));
+        OnPropertyChanged(nameof(ShowLowResolutionThemeEditor));
+        OnPropertyChanged(nameof(ShowDesktopTopPanels));
+        OnPropertyChanged(nameof(ShowCompactTopPanels));
+        OnPropertyChanged(nameof(ShowLowResolutionOverviewButton));
+        OnPropertyChanged(nameof(ShowLowResolutionOverview));
     }
 
     private sealed class ComposerHistoryState

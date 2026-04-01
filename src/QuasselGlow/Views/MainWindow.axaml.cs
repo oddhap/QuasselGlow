@@ -15,6 +15,7 @@ namespace QuasselGlow.Views;
 public partial class MainWindow : Window
 {
     private const double CompactLayoutWidthThreshold = 1180;
+    private const double LowResolutionHeightThreshold = 820;
     private MainWindowViewModel? _viewModel;
     private BufferItemViewModel? _observedBuffer;
     private ScrollViewer? _chatScrollHost;
@@ -309,6 +310,7 @@ public partial class MainWindow : Window
     private void UpdateResponsiveLayout()
     {
         _viewModel?.SetCompactLayout(ClientSize.Width < CompactLayoutWidthThreshold);
+        _viewModel?.SetLowResolutionLayout(ClientSize.Height < LowResolutionHeightThreshold);
     }
 
     private void AttachChatScrollHost()

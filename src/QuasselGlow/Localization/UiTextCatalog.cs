@@ -265,6 +265,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("AllowInsecureTls", "Allow insecure TLS"),
             ("MinimizeToTray", "Minimize to tray"),
             ("Done", "Done"),
+            ("Overview", "Overview"),
             ("Network", "Network"),
             ("SelectBufferToStart", "Select a buffer to get started"),
             ("NoNetworkSelected", "No network selected"),
@@ -371,6 +372,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("AllowInsecureTls", "Godta usikker TLS"),
             ("MinimizeToTray", "Minimer til tray"),
             ("Done", "Ferdig"),
+            ("Overview", "Oversikt"),
             ("Network", "Nettverk"),
             ("SelectBufferToStart", "Velg en buffer for å starte"),
             ("NoNetworkSelected", "Ingen nettverk valgt"),
@@ -2229,6 +2231,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("Ban", "Ban"),
             ("KickBan", "Kick + ban"),
             ("Whois", "Whois"),
+            ("Overview", "Overview"),
             ("ConnectionSummaryEndpointOnly", "{0}"));
 
         foreach (var code in SupportedLanguageCodes)
