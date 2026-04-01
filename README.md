@@ -29,8 +29,11 @@ QuasselGlow is an early-stage project. The current build includes:
 - Quassel core connection and authentication
 - Network, buffer, and backlog loading
 - Message sending
+- Clickable links in chat messages
+- Quassel-style per-buffer input history and draft recall
 - A custom desktop UI built with Avalonia
 - Local connection settings storage
+- Theme selection, tray support, and localized UI labels
 - Language selection covering the full locale list shipped by the official Quassel client
 
 ## Tech Stack
@@ -84,12 +87,12 @@ dotnet test Quassel.slnx
 ### Create release artifacts
 
 ```powershell
-.\scripts\Publish-Release.ps1 -Version v0.2.0
+.\scripts\Publish-Release.ps1
 ```
 
-This publishes self-contained release builds for `win-x64`, `linux-x64`, `osx-x64`, and `osx-arm64` into `.artifacts/releases/v0.2.0/`, writes `SHA256SUMS.txt`, creates `QuasselGlow-v0.2.0-<rid>.zip` archives, and seeds a `RELEASE_NOTES.md` file if one does not already exist.
+This publishes self-contained release builds for `win-x64`, `linux-x64`, `osx-x64`, and `osx-arm64` into `.artifacts/releases/<version>/`, writes `SHA256SUMS.txt`, creates platform archives, and seeds a `RELEASE_NOTES.md` file if one does not already exist.
 
-The release version is centralized in `Directory.Build.props`. If you omit `-Version`, the publish script will use that shared `VersionPrefix`.
+The release version is centralized in `Directory.Build.props`. If you omit `-Version`, the publish script will use that shared `VersionPrefix`. On macOS the script also emits a signed `QuasselGlow.app` bundle, a zip that contains the app bundle, and a `.dmg`.
 
 ## Configuration
 
@@ -97,7 +100,7 @@ The app stores local connection settings in the user's local application data fo
 
 The selected UI language is also stored locally. QuasselGlow exposes the same locale list as the official Quassel translation set and ships with translated UI labels for that full locale set.
 
-Recent desktop polish includes persisted themes with dark mode, PM and mention alerts, tray support, and emoji-friendly font fallback.
+Recent desktop polish includes persisted themes with dark mode, PM and mention alerts, tray support, emoji-friendly font fallback, composer autofocus after connecting, and automatic channel switching after `/join` and `/j`.
 
 ## Notes
 
