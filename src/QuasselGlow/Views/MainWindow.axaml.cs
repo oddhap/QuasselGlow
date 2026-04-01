@@ -386,6 +386,29 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void OnComposerKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox textBox || _viewModel is null || e.KeyModifiers != KeyModifiers.None)
+        {
+            return;
+        }
+
+        var handled = e.Key switch
+        {
+            Key.Up => _viewModel.TryRecallPreviousDraft(),
+            Key.Down => _viewModel.TryRecallNextDraft(),
+            _ => false
+        };
+
+        if (!handled)
+        {
+            return;
+        }
+
+        textBox.CaretIndex = textBox.Text?.Length ?? 0;
+        e.Handled = true;
+    }
+
     private void UpdateWindowChrome(WindowState state)
     {
         var isMaximized = state == WindowState.Maximized;

@@ -21,6 +21,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly UiTextCatalog _strings = UiTextCatalog.Instance;
     private readonly Dictionary<NetworkId, NetworkItemViewModel> _networksById = new();
     private readonly Dictionary<BufferId, BufferItemViewModel> _buffersById = new();
+    private readonly Dictionary<BufferId, ComposerHistoryState> _composerHistoryByBuffer = new();
     private readonly Dictionary<string, QuasselChannelState> _channelStatesByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _suppressedChannelBufferKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<BufferId> _pendingDeletedChannelBuffers = [];
@@ -236,6 +237,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
                     _ = EnsureBacklogForSelectionAsync(_selectedBuffer);
                 }
 
+                DraftMessage = _selectedBuffer is not null
+                    ? GetComposerHistoryState(_selectedBuffer.BufferInfo.BufferId).InputLine
+                    : string.Empty;
                 OnPropertyChanged(nameof(SelectedNetwork));
                 OnPropertyChanged(nameof(CanSendMessage));
                 SendMessageCommand.NotifyCanExecuteChanged();
@@ -520,9 +524,62 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             return;
         }
 
+        RememberSentMessage(SelectedBuffer.BufferInfo.BufferId, text);
         DraftMessage = string.Empty;
         RestoreSuppressedChannelForJoinCommand(SelectedBuffer.BufferInfo.NetworkId, text);
         await _session.SendInputAsync(SelectedBuffer.BufferInfo, text).ConfigureAwait(false);
+    }
+
+    public bool TryRecallPreviousDraft()
+    {
+        if (SelectedBuffer?.AcceptsInput != true)
+        {
+            return false;
+        }
+
+        var state = GetComposerHistoryState(SelectedBuffer.BufferInfo.BufferId);
+        AddToComposerHistory(state, DraftMessage, temporary: true);
+
+        if (state.NavigationIndex > 0)
+        {
+            state.NavigationIndex--;
+            DraftMessage = GetComposerHistoryEntry(state);
+        }
+
+        return true;
+    }
+
+    public bool TryRecallNextDraft()
+    {
+        if (SelectedBuffer?.AcceptsInput != true)
+        {
+            return false;
+        }
+
+        var state = GetComposerHistoryState(SelectedBuffer.BufferInfo.BufferId);
+        AddToComposerHistory(state, DraftMessage, temporary: true);
+
+        if (state.NavigationIndex < state.Entries.Count)
+        {
+            state.NavigationIndex++;
+            if (state.NavigationIndex < state.Entries.Count || state.TempEntries.ContainsKey(state.NavigationIndex))
+            {
+                DraftMessage = GetComposerHistoryEntry(state);
+            }
+            else
+            {
+                ResetComposerHistoryPosition(state);
+                DraftMessage = string.Empty;
+            }
+        }
+        else
+        {
+            AddToComposerHistory(state, DraftMessage, temporary: false);
+            ResetComposerHistoryPosition(state);
+            DraftMessage = string.Empty;
+        }
+
+        return true;
     }
 
     [RelayCommand]
@@ -678,6 +735,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     partial void OnDraftMessageChanged(string value)
     {
+        if (SelectedBuffer is not null)
+        {
+            GetComposerHistoryState(SelectedBuffer.BufferInfo.BufferId).InputLine = value;
+        }
+
         OnPropertyChanged(nameof(CanSendMessage));
         SendMessageCommand.NotifyCanExecuteChanged();
     }
@@ -777,6 +839,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
                 Networks.Clear();
                 _networksById.Clear();
                 _buffersById.Clear();
+                _composerHistoryByBuffer.Clear();
                 _channelStatesByKey.Clear();
                 SelectedBuffer = null;
                 OnPropertyChanged(nameof(SessionSummaryText));
@@ -809,6 +872,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             Networks.Clear();
             _networksById.Clear();
             _buffersById.Clear();
+            _composerHistoryByBuffer.Clear();
             _channelStatesByKey.Clear();
             _pendingDeletedChannelBuffers.Clear();
 
@@ -876,6 +940,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
         var created = new BufferItemViewModel(bufferInfo);
         _buffersById[bufferInfo.BufferId] = created;
+        _composerHistoryByBuffer.TryAdd(bufferInfo.BufferId, new ComposerHistoryState());
         created.PropertyChanged += OnBufferPropertyChanged;
         ApplyCachedChannelState(created);
         network.UpsertBuffer(created);
@@ -929,6 +994,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             return;
         }
 
+        _composerHistoryByBuffer.Remove(buffer.BufferInfo.BufferId);
         buffer.PropertyChanged -= OnBufferPropertyChanged;
 
         if (_networksById.TryGetValue(buffer.BufferInfo.NetworkId, out var network))
@@ -962,6 +1028,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         {
             buffer.PropertyChanged -= OnBufferPropertyChanged;
             _buffersById.Remove(buffer.BufferInfo.BufferId);
+            _composerHistoryByBuffer.Remove(buffer.BufferInfo.BufferId);
         }
 
         Networks.Remove(network);
@@ -1122,6 +1189,68 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private string GetEndpointPortText()
     {
         return string.IsNullOrWhiteSpace(PortText) ? "60096" : PortText.Trim();
+    }
+
+    private ComposerHistoryState GetComposerHistoryState(BufferId bufferId)
+    {
+        if (_composerHistoryByBuffer.TryGetValue(bufferId, out var state))
+        {
+            return state;
+        }
+
+        state = new ComposerHistoryState();
+        _composerHistoryByBuffer[bufferId] = state;
+        return state;
+    }
+
+    private void RememberSentMessage(BufferId bufferId, string text)
+    {
+        var state = GetComposerHistoryState(bufferId);
+        AddToComposerHistory(state, text, temporary: false);
+        state.TempEntries.Clear();
+        ResetComposerHistoryPosition(state);
+        state.InputLine = string.Empty;
+    }
+
+    private static bool AddToComposerHistory(ComposerHistoryState state, string text, bool temporary)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        if (temporary)
+        {
+            if (state.Entries.Count == 0
+                || text != state.Entries[state.NavigationIndex - (state.NavigationIndex == state.Entries.Count ? 1 : 0)])
+            {
+                state.TempEntries[state.NavigationIndex] = text;
+                return true;
+            }
+        }
+        else
+        {
+            if (state.Entries.Count == 0 || text != state.Entries[^1])
+            {
+                state.Entries.Add(text);
+                state.TempEntries.Clear();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ResetComposerHistoryPosition(ComposerHistoryState state)
+    {
+        state.NavigationIndex = state.Entries.Count;
+    }
+
+    private static string GetComposerHistoryEntry(ComposerHistoryState state)
+    {
+        return state.TempEntries.TryGetValue(state.NavigationIndex, out var temporaryEntry)
+            ? temporaryEntry
+            : state.Entries[state.NavigationIndex];
     }
 
     private string BuildConnectionStatusText(QuasselConnectionState state, string? message)
@@ -1508,5 +1637,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private static string BuildNickBanMask(string nick)
     {
         return $"{nick.Trim()}!*@*";
+    }
+
+    private sealed class ComposerHistoryState
+    {
+        public List<string> Entries { get; } = [];
+        public Dictionary<int, string> TempEntries { get; } = [];
+        public int NavigationIndex { get; set; }
+        public string InputLine { get; set; } = string.Empty;
     }
 }

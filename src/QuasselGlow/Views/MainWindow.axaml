@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:primitives="clr-namespace:Avalonia.Controls.Primitives;assembly=Avalonia.Controls"
+        xmlns:controls="using:QuasselGlow.Controls"
         xmlns:vm="using:QuasselGlow.ViewModels"
         x:Class="QuasselGlow.Views.MainWindow"
         x:Name="RootWindow"
@@ -184,6 +185,13 @@
         <Style Selector="SelectableTextBlock.messageText">
             <Setter Property="SelectionBrush" Value="{StaticResource ComposerSelection}" />
             <Setter Property="SelectionForegroundBrush" Value="{StaticResource InkStrong}" />
+        </Style>
+
+        <Style Selector="HyperlinkButton.messageLink">
+            <Setter Property="Foreground" Value="{StaticResource AccentTeal}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
         </Style>
 
         <Style Selector="Button.windowChrome">
@@ -1013,7 +1021,7 @@
                                                            TextTrimming="CharacterEllipsis" />
                                                 <SelectableTextBlock Grid.Column="2"
                                                                      Classes="messageText"
-                                                                     Text="{Binding LineText}"
+                                                                     controls:MessageInlineRenderer.Segments="{Binding Segments}"
                                                                      TextWrapping="Wrap" />
                                             </Grid>
                                         </Border>
@@ -1161,6 +1169,7 @@
                 <TextBox Grid.Column="1"
                          Watermark="{Binding Strings[JoinOrType]}"
                          Text="{Binding DraftMessage}"
+                         KeyDown="OnComposerKeyDown"
                          IsEnabled="{Binding SelectedBuffer.AcceptsInput}">
                     <TextBox.KeyBindings>
                         <KeyBinding Gesture="Enter" Command="{Binding SendMessageCommand}" />
@@ -1192,6 +1201,7 @@
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <TextBox Watermark="{Binding Strings[JoinOrType]}"
                              Text="{Binding DraftMessage}"
+                             KeyDown="OnComposerKeyDown"
                              IsEnabled="{Binding SelectedBuffer.AcceptsInput}">
                         <TextBox.KeyBindings>
                             <KeyBinding Gesture="Enter" Command="{Binding SendMessageCommand}" />

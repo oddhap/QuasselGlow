@@ -120,6 +120,137 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task ComposerHistory_UpAndDownRestoreBufferedDraft()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var statusBuffer = new QuasselBufferInfo(new BufferId(30), new NetworkId(1), QuasselBufferType.Status, 0, "Status");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [statusBuffer], [new NetworkId(1)]));
+
+        viewModel.DraftMessage = "first";
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+        viewModel.DraftMessage = "second";
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+        viewModel.DraftMessage = "working draft";
+
+        Assert.True(viewModel.TryRecallPreviousDraft());
+        Assert.Equal("second", viewModel.DraftMessage);
+
+        Assert.True(viewModel.TryRecallPreviousDraft());
+        Assert.Equal("first", viewModel.DraftMessage);
+
+        Assert.True(viewModel.TryRecallNextDraft());
+        Assert.Equal("second", viewModel.DraftMessage);
+
+        Assert.True(viewModel.TryRecallNextDraft());
+        Assert.Equal("working draft", viewModel.DraftMessage);
+    }
+
+    [Fact]
+    public async Task ComposerHistory_AndDraftAreScopedPerBuffer()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var firstBuffer = new QuasselBufferInfo(new BufferId(31), new NetworkId(1), QuasselBufferType.Status, 0, "Status");
+        var secondBuffer = new QuasselBufferInfo(new BufferId(32), new NetworkId(1), QuasselBufferType.Query, 0, "bob");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [firstBuffer, secondBuffer], [new NetworkId(1)]));
+
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == firstBuffer.BufferId);
+        viewModel.DraftMessage = "status message";
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == secondBuffer.BufferId);
+        viewModel.DraftMessage = "query draft";
+
+        Assert.Equal("query draft", viewModel.DraftMessage);
+
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == firstBuffer.BufferId);
+
+        Assert.Equal(string.Empty, viewModel.DraftMessage);
+
+        Assert.True(viewModel.TryRecallPreviousDraft());
+        Assert.Equal("status message", viewModel.DraftMessage);
+
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == secondBuffer.BufferId);
+
+        Assert.Equal("query draft", viewModel.DraftMessage);
+    }
+
+    [Fact]
+    public async Task ComposerHistory_UpFromActiveDraftShowsHistoryAndDownRestoresDraft()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var statusBuffer = new QuasselBufferInfo(new BufferId(33), new NetworkId(1), QuasselBufferType.Status, 0, "Status");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [statusBuffer], [new NetworkId(1)]));
+
+        viewModel.DraftMessage = "sent message";
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+
+        viewModel.DraftMessage = "draft to stash";
+
+        Assert.True(viewModel.TryRecallPreviousDraft());
+        Assert.Equal("sent message", viewModel.DraftMessage);
+
+        Assert.True(viewModel.TryRecallNextDraft());
+        Assert.Equal("draft to stash", viewModel.DraftMessage);
+    }
+
+    [Fact]
+    public async Task ComposerHistory_DownAfterSingleUpRestoresDraftImmediately()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var statusBuffer = new QuasselBufferInfo(new BufferId(34), new NetworkId(1), QuasselBufferType.Status, 0, "Status");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [statusBuffer], [new NetworkId(1)]));
+
+        viewModel.DraftMessage = "sent message";
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+        viewModel.DraftMessage = "draft to restore";
+
+        Assert.True(viewModel.TryRecallPreviousDraft());
+        Assert.Equal("sent message", viewModel.DraftMessage);
+
+        Assert.True(viewModel.TryRecallNextDraft());
+        Assert.Equal("draft to restore", viewModel.DraftMessage);
+    }
+
+    [Fact]
+    public async Task ComposerHistory_DownFromLatestHistoryWithoutDraftClearsComposer()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var statusBuffer = new QuasselBufferInfo(new BufferId(35), new NetworkId(1), QuasselBufferType.Status, 0, "Status");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [statusBuffer], [new NetworkId(1)]));
+
+        viewModel.DraftMessage = "first";
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+        viewModel.DraftMessage = "second";
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.TryRecallPreviousDraft());
+        Assert.Equal("second", viewModel.DraftMessage);
+
+        Assert.True(viewModel.TryRecallNextDraft());
+        Assert.Equal(string.Empty, viewModel.DraftMessage);
+    }
+
+    [Fact]
     public void ChannelTopicUpdate_UsesTopicForSelectedBufferSubtitle()
     {
         var session = new FakeSessionService();
