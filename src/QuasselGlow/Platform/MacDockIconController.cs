@@ -4,6 +4,10 @@ namespace QuasselGlow.Platform;
 
 internal static class MacDockIconController
 {
+    private static readonly IntPtr NSApplicationClass = objc_getClass("NSApplication");
+    private static readonly IntPtr SharedApplicationSelector = sel_registerName("sharedApplication");
+    private static readonly IntPtr SetActivationPolicySelector = sel_registerName("setActivationPolicy:");
+
     public static void SetDockIconVisible(bool isVisible)
     {
         if (!OperatingSystem.IsMacOS())
@@ -13,13 +17,7 @@ internal static class MacDockIconController
 
         try
         {
-            var applicationClass = objc_getClass("NSApplication");
-            if (applicationClass == IntPtr.Zero)
-            {
-                return;
-            }
-
-            var sharedApplication = objc_msgSend(applicationClass, sel_registerName("sharedApplication"));
+            var sharedApplication = GetSharedApplication();
             if (sharedApplication == IntPtr.Zero)
             {
                 return;
@@ -28,7 +26,7 @@ internal static class MacDockIconController
             var activationPolicy = isVisible
                 ? (nint)NSApplicationActivationPolicy.Regular
                 : (nint)NSApplicationActivationPolicy.Accessory;
-            objc_msgSend_bool(sharedApplication, sel_registerName("setActivationPolicy:"), activationPolicy);
+            objc_msgSend_bool(sharedApplication, SetActivationPolicySelector, activationPolicy);
         }
         catch (DllNotFoundException)
         {
@@ -36,6 +34,16 @@ internal static class MacDockIconController
         catch (EntryPointNotFoundException)
         {
         }
+    }
+
+    private static IntPtr GetSharedApplication()
+    {
+        if (NSApplicationClass == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        return objc_msgSend(NSApplicationClass, SharedApplicationSelector);
     }
 
     private enum NSApplicationActivationPolicy : long
