@@ -384,7 +384,8 @@
                                 Content="{Binding Strings[Settings]}" />
                     </Grid>
 
-                    <primitives:Popup IsOpen="{Binding IsThemeEditorOpen, Mode=TwoWay}"
+                    <primitives:Popup IsOpen="{Binding ShowDesktopThemeEditor}"
+                                      Closed="OnThemeEditorPopupClosed"
                                       IsLightDismissEnabled="True"
                                       PlacementTarget="{Binding #ThemeEditButton}"
                                       Placement="BottomEdgeAlignedLeft"
@@ -521,7 +522,8 @@
                         </Border>
                     </StackPanel>
 
-                    <primitives:Popup IsOpen="{Binding IsConnectionEditorOpen, Mode=TwoWay}"
+                    <primitives:Popup IsOpen="{Binding ShowDesktopConnectionEditor}"
+                                      Closed="OnConnectionEditorPopupClosed"
                                       IsLightDismissEnabled="True"
                                       PlacementTarget="{Binding #ConnectionEditButton}"
                                       Placement="BottomEdgeAlignedRight"
@@ -621,7 +623,8 @@
                                 Content="{Binding Strings[Settings]}" />
                     </Grid>
 
-                    <primitives:Popup IsOpen="{Binding IsThemeEditorOpen, Mode=TwoWay}"
+                    <primitives:Popup IsOpen="{Binding ShowCompactThemeEditor}"
+                                      Closed="OnThemeEditorPopupClosed"
                                       IsLightDismissEnabled="True"
                                       PlacementTarget="{Binding #ThemeEditButtonCompact}"
                                       Placement="BottomEdgeAlignedLeft"
@@ -758,7 +761,8 @@
                         </Border>
                     </StackPanel>
 
-                    <primitives:Popup IsOpen="{Binding IsConnectionEditorOpen, Mode=TwoWay}"
+                    <primitives:Popup IsOpen="{Binding ShowCompactConnectionEditor}"
+                                      Closed="OnConnectionEditorPopupClosed"
                                       IsLightDismissEnabled="True"
                                       PlacementTarget="{Binding #ConnectionEditButtonCompact}"
                                       Placement="BottomEdgeAlignedRight"
@@ -1166,7 +1170,8 @@
                                VerticalAlignment="Center" />
                 </Border>
 
-                <TextBox Grid.Column="1"
+                <TextBox x:Name="MainComposerTextBox"
+                         Grid.Column="1"
                          Watermark="{Binding Strings[JoinOrType]}"
                          Text="{Binding DraftMessage}"
                          KeyDown="OnComposerKeyDown"
@@ -1199,7 +1204,8 @@
                 </Border>
 
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <TextBox Watermark="{Binding Strings[JoinOrType]}"
+                    <TextBox x:Name="CompactComposerTextBox"
+                             Watermark="{Binding Strings[JoinOrType]}"
                              Text="{Binding DraftMessage}"
                              KeyDown="OnComposerKeyDown"
                              IsEnabled="{Binding SelectedBuffer.AcceptsInput}">

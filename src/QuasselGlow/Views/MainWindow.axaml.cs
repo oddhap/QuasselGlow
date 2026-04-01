@@ -45,11 +45,13 @@ public partial class MainWindow : Window
         UpdateWindowChrome(WindowState);
         UpdateResponsiveLayout();
         _viewModel?.SetForegroundState(true);
+        QueueFocusComposer();
     }
 
     private void OnActivated(object? sender, EventArgs e)
     {
         _viewModel?.SetForegroundState(true);
+        QueueFocusComposer();
     }
 
     private void OnDeactivated(object? sender, EventArgs e)
@@ -95,6 +97,7 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(MainWindowViewModel.SelectedBuffer))
         {
             AttachToBuffer(_viewModel?.SelectedBuffer, scrollToBottom: true);
+            QueueFocusComposer();
             return;
         }
 
@@ -407,6 +410,52 @@ public partial class MainWindow : Window
 
         textBox.CaretIndex = textBox.Text?.Length ?? 0;
         e.Handled = true;
+    }
+
+    private void OnThemeEditorPopupClosed(object? sender, EventArgs e)
+    {
+        if (_viewModel?.IsThemeEditorOpen == true)
+        {
+            _viewModel.CloseThemeEditorCommand.Execute(null);
+        }
+    }
+
+    private void OnConnectionEditorPopupClosed(object? sender, EventArgs e)
+    {
+        if (_viewModel?.IsConnectionEditorOpen == true)
+        {
+            _viewModel.CloseConnectionEditorCommand.Execute(null);
+        }
+    }
+
+    private void QueueFocusComposer()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            var composer = GetActiveComposerTextBox();
+            if (composer is null || !IsActive || !composer.IsEnabled)
+            {
+                return;
+            }
+
+            composer.Focus();
+            composer.CaretIndex = composer.Text?.Length ?? 0;
+        }, DispatcherPriority.Loaded);
+    }
+
+    private TextBox? GetActiveComposerTextBox()
+    {
+        if (MainComposerTextBox.IsVisible)
+        {
+            return MainComposerTextBox;
+        }
+
+        if (CompactComposerTextBox.IsVisible)
+        {
+            return CompactComposerTextBox;
+        }
+
+        return null;
     }
 
     private void UpdateWindowChrome(WindowState state)

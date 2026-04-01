@@ -316,6 +316,25 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ConnectionEditor_OnlyShowsForActiveLayout()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        viewModel.SetCompactLayout(false);
+        viewModel.ToggleConnectionEditorCommand.Execute(null);
+
+        Assert.True(viewModel.ShowDesktopConnectionEditor);
+        Assert.False(viewModel.ShowCompactConnectionEditor);
+
+        viewModel.SetCompactLayout(true);
+
+        Assert.False(viewModel.ShowDesktopConnectionEditor);
+        Assert.True(viewModel.ShowCompactConnectionEditor);
+    }
+
+    [Fact]
     public void ChangingLanguage_PreservesLocalizedThemeModeSelection()
     {
         var session = new FakeSessionService();
@@ -577,6 +596,47 @@ public sealed class MainWindowViewModelTests
         session.EmitBufferInfo(channelBuffer);
 
         Assert.Contains(viewModel.Networks.Single().Buffers, buffer => buffer.DisplayName == "#beta");
+        Assert.Equal("#beta", viewModel.SelectedBuffer?.DisplayName);
+    }
+
+    [Fact]
+    public async Task JoinCommand_SelectsNewChannelBufferWhenItAppears()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var statusBuffer = new QuasselBufferInfo(new BufferId(40), new NetworkId(1), QuasselBufferType.Status, 0, "status");
+        var channelBuffer = new QuasselBufferInfo(new BufferId(41), new NetworkId(1), QuasselBufferType.Channel, 0, "#newroom");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [statusBuffer], [new NetworkId(1)]));
+
+        viewModel.DraftMessage = "/join #newroom";
+
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+        session.EmitBufferInfo(channelBuffer);
+
+        Assert.Equal("#newroom", viewModel.SelectedBuffer?.DisplayName);
+    }
+
+    [Fact]
+    public async Task ShortJoinCommand_SelectsNewChannelBufferWhenItAppears()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var statusBuffer = new QuasselBufferInfo(new BufferId(42), new NetworkId(1), QuasselBufferType.Status, 0, "status");
+        var channelBuffer = new QuasselBufferInfo(new BufferId(43), new NetworkId(1), QuasselBufferType.Channel, 0, "#testkanal");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [statusBuffer], [new NetworkId(1)]));
+
+        viewModel.DraftMessage = "/j testkanal";
+
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+        session.EmitBufferInfo(channelBuffer);
+
+        Assert.Equal("#testkanal", viewModel.SelectedBuffer?.DisplayName);
     }
 
     [Fact]

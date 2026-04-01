@@ -23,6 +23,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly Dictionary<BufferId, BufferItemViewModel> _buffersById = new();
     private readonly Dictionary<BufferId, ComposerHistoryState> _composerHistoryByBuffer = new();
     private readonly Dictionary<string, QuasselChannelState> _channelStatesByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _pendingChannelSwitchKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _suppressedChannelBufferKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<BufferId> _pendingDeletedChannelBuffers = [];
 
@@ -279,6 +280,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     public string ThemeSummaryText =>
         $"{SelectedTheme?.DisplayName ?? _strings["ThemeLabel"]} / {SelectedThemeMode?.DisplayName ?? _strings["ThemeModeLabel"]}";
 
+    public bool ShowDesktopThemeEditor => IsThemeEditorOpen && !IsCompactLayout;
+
+    public bool ShowCompactThemeEditor => IsThemeEditorOpen && IsCompactLayout;
+
+    public bool ShowDesktopConnectionEditor => IsConnectionEditorOpen && !IsCompactLayout;
+
+    public bool ShowCompactConnectionEditor => IsConnectionEditorOpen && IsCompactLayout;
+
     public string CurrentSelectionText => SelectedBuffer?.DisplayName ?? _strings["SelectBufferToStart"];
 
     public string CurrentNetworkText => SelectedNetwork?.DisplayName ?? _strings["NoNetworkSelected"];
@@ -343,6 +352,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     {
         if (SetProperty(ref _isCompactLayout, isCompact))
         {
+            OnPropertyChanged(nameof(ShowDesktopConnectionEditor));
+            OnPropertyChanged(nameof(ShowCompactConnectionEditor));
+            OnPropertyChanged(nameof(ShowDesktopThemeEditor));
+            OnPropertyChanged(nameof(ShowCompactThemeEditor));
             OnPropertyChanged(nameof(UserListDisplayMode));
             OnPropertyChanged(nameof(UseOverlayDismissForUserList));
         }
@@ -527,6 +540,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         RememberSentMessage(SelectedBuffer.BufferInfo.BufferId, text);
         DraftMessage = string.Empty;
         RestoreSuppressedChannelForJoinCommand(SelectedBuffer.BufferInfo.NetworkId, text);
+        TrackChannelSwitchForJoinCommand(SelectedBuffer.BufferInfo.NetworkId, text);
         await _session.SendInputAsync(SelectedBuffer.BufferInfo, text).ConfigureAwait(false);
     }
 
@@ -765,6 +779,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         SaveSettingsIfReady();
     }
 
+    partial void OnIsThemeEditorOpenChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowDesktopThemeEditor));
+        OnPropertyChanged(nameof(ShowCompactThemeEditor));
+        SaveSettingsIfReady();
+    }
+
+    partial void OnIsConnectionEditorOpenChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowDesktopConnectionEditor));
+        OnPropertyChanged(nameof(ShowCompactConnectionEditor));
+        SaveSettingsIfReady();
+    }
+
     partial void OnIsUserListPinnedChanged(bool value)
     {
         OnPropertyChanged(nameof(UserListDisplayMode));
@@ -841,6 +869,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
                 _buffersById.Clear();
                 _composerHistoryByBuffer.Clear();
                 _channelStatesByKey.Clear();
+                _pendingChannelSwitchKeys.Clear();
                 SelectedBuffer = null;
                 OnPropertyChanged(nameof(SessionSummaryText));
             }
@@ -874,6 +903,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             _buffersById.Clear();
             _composerHistoryByBuffer.Clear();
             _channelStatesByKey.Clear();
+            _pendingChannelSwitchKeys.Clear();
             _pendingDeletedChannelBuffers.Clear();
 
             foreach (var networkId in sessionState.Networks)
@@ -945,7 +975,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         ApplyCachedChannelState(created);
         network.UpsertBuffer(created);
 
-        SelectedBuffer ??= PickInitialBuffer();
+        if (ShouldSelectBufferAfterJoin(bufferInfo))
+        {
+            SelectedBuffer = created;
+        }
+        else
+        {
+            SelectedBuffer ??= PickInitialBuffer();
+        }
+
         OnPropertyChanged(nameof(TrayToolTipText));
         OnPropertyChanged(nameof(SessionSummaryText));
     }
@@ -1537,6 +1575,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         _suppressedChannelBufferKeys.Add(BuildChannelStateKey(networkId, channelName));
     }
 
+    private bool ShouldSelectBufferAfterJoin(QuasselBufferInfo bufferInfo)
+    {
+        if (bufferInfo.Type != QuasselBufferType.Channel || string.IsNullOrWhiteSpace(bufferInfo.BufferName))
+        {
+            return false;
+        }
+
+        return _pendingChannelSwitchKeys.Remove(BuildChannelStateKey(bufferInfo.NetworkId, bufferInfo.BufferName));
+    }
+
     private bool ShouldSuppressBuffer(QuasselBufferInfo bufferInfo)
     {
         return bufferInfo.Type == QuasselBufferType.Channel
@@ -1554,6 +1602,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         _suppressedChannelBufferKeys.Remove(BuildChannelStateKey(networkId, channelName));
     }
 
+    private void TrackChannelSwitchForJoinCommand(NetworkId networkId, string text)
+    {
+        if (!TryParseJoinTarget(text, out var channelName))
+        {
+            return;
+        }
+
+        _pendingChannelSwitchKeys.Add(BuildChannelStateKey(networkId, channelName));
+    }
+
     private static bool TryParseJoinTarget(string text, out string channelName)
     {
         channelName = string.Empty;
@@ -1563,12 +1621,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         }
 
         var trimmed = text.Trim();
-        if (!trimmed.StartsWith("/join ", StringComparison.OrdinalIgnoreCase))
+        var separatorIndex = trimmed.IndexOf(' ');
+        if (separatorIndex < 0)
         {
             return false;
         }
 
-        var remainder = trimmed[6..].Trim();
+        var command = trimmed[..separatorIndex];
+        if (!command.Equals("/join", StringComparison.OrdinalIgnoreCase)
+            && !command.Equals("/j", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var remainder = trimmed[(separatorIndex + 1)..].Trim();
         if (remainder.Length == 0)
         {
             return false;
@@ -1577,6 +1643,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         channelName = remainder
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .FirstOrDefault() ?? string.Empty;
+
+        if (channelName.Length > 0 && !"#&+!".Contains(channelName[0]))
+        {
+            channelName = $"#{channelName}";
+        }
 
         return channelName.Length > 0;
     }
