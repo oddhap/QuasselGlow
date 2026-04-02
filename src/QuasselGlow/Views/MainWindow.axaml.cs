@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ConfigurePlatformWindowChrome();
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         DataContextChanged += OnDataContextChanged;
         Opened += OnOpened;
@@ -42,6 +43,18 @@ public partial class MainWindow : Window
         Deactivated += OnDeactivated;
         Closed += OnClosed;
         AttachToViewModel(DataContext as MainWindowViewModel);
+    }
+
+    private void ConfigurePlatformWindowChrome()
+    {
+        ExtendClientAreaToDecorationsHint = true;
+        ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.NoChrome;
+
+        // Linux window managers can render both the native title bar and the custom Avalonia chrome
+        // at the same time unless system decorations are explicitly disabled.
+        SystemDecorations = OperatingSystem.IsLinux()
+            ? SystemDecorations.None
+            : SystemDecorations.Full;
     }
 
     private void OnOpened(object? sender, EventArgs e)

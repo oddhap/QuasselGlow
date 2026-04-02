@@ -15,3 +15,5 @@ TestResults/
 *.DS_Store
 Thumbs.db
 test-build/
+.dotnet-home/
+.nuget/

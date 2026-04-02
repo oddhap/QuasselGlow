@@ -66,6 +66,24 @@ QuasselGlow is an early-stage project. The current build includes:
 
 - .NET SDK 10.0 or newer
 
+### Local Linux setup
+
+This repository is set up to work with a user-local .NET install. On this machine, the SDK was installed to `~/.dotnet`.
+
+Add it to your shell path:
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+```
+
+For sandboxed or isolated environments, you can keep CLI state and NuGet packages inside the repository:
+
+```bash
+export DOTNET_CLI_HOME="$PWD/.dotnet-home"
+export NUGET_PACKAGES="$PWD/.nuget/packages"
+mkdir -p "$DOTNET_CLI_HOME" "$NUGET_PACKAGES"
+```
+
 ### Build
 
 ```powershell
@@ -93,6 +111,14 @@ dotnet test Quassel.slnx
 This publishes self-contained release builds for `win-x64`, `linux-x64`, `osx-x64`, and `osx-arm64` into `.artifacts/releases/<version>/`, writes `SHA256SUMS.txt`, creates platform archives, and seeds a `RELEASE_NOTES.md` file if one does not already exist.
 
 The release version is centralized in `Directory.Build.props`. If you omit `-Version`, the publish script will use that shared `VersionPrefix`. On macOS the script also emits a signed `QuasselGlow.app` bundle, a zip that contains the app bundle, and a `.dmg`.
+
+### Install or update the local Linux app
+
+```bash
+./scripts/install-linux-local.sh
+```
+
+This builds the current `Release` Linux version, installs the binary into `~/.local/opt/QuasselGlow/`, copies the icon into `~/.local/share/icons/`, and refreshes the app launcher in `~/.local/share/applications/quasselglow.desktop`.
 
 ## Configuration
 
