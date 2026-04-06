@@ -107,7 +107,7 @@ public sealed partial class BufferItemViewModel : ViewModelBase
             HasMentionAlert = true;
         }
 
-        if (BufferInfo.Type == QuasselBufferType.Query && !message.IsStatusMessage)
+        if (BufferInfo.Type == QuasselBufferType.Query && !viewModel.IsStatus)
         {
             HasPrivateMessageAlert = true;
         }

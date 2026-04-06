@@ -27,15 +27,66 @@ public sealed class MessageItemViewModelTests
         Assert.Equal(", please.", viewModel.Segments[2].Text);
     }
 
-    private static QuasselMessage CreateMessage(string contents)
+    [Fact]
+    public void Constructor_FormatsJoinMessagesAsStatusLines()
+    {
+        var viewModel = new MessageItemViewModel(CreateMessage(
+            contents: "#quassel",
+            type: QuasselMessageType.Join));
+
+        Assert.True(viewModel.IsStatus);
+        Assert.False(viewModel.HasSender);
+        Assert.Equal("alice (user@example) has joined #quassel", viewModel.LineText);
+    }
+
+    [Fact]
+    public void Constructor_FormatsPartMessagesWithReason()
+    {
+        var viewModel = new MessageItemViewModel(CreateMessage(
+            contents: "Ping timeout: 500 seconds",
+            type: QuasselMessageType.Part));
+
+        Assert.True(viewModel.IsStatus);
+        Assert.Equal("alice (user@example) has left #quassel (Ping timeout: 500 seconds)", viewModel.LineText);
+    }
+
+    [Fact]
+    public void Constructor_FormatsSelfNickChanges()
+    {
+        var viewModel = new MessageItemViewModel(CreateMessage(
+            contents: "alice_",
+            type: QuasselMessageType.Nick,
+            flags: QuasselMessageFlags.Self));
+
+        Assert.True(viewModel.IsStatus);
+        Assert.Equal("You are now known as alice_", viewModel.LineText);
+    }
+
+    [Fact]
+    public void Constructor_FormatsNetsplitQuitMessages()
+    {
+        var viewModel = new MessageItemViewModel(CreateMessage(
+            contents: "alice!user@example#:#bob!ident@host#:#hub.one hub.two",
+            type: QuasselMessageType.NetsplitQuit,
+            sender: string.Empty));
+
+        Assert.True(viewModel.IsStatus);
+        Assert.Equal("Netsplit between hub.one and hub.two. Users quit: alice, bob", viewModel.LineText);
+    }
+
+    private static QuasselMessage CreateMessage(
+        string contents,
+        QuasselMessageType type = QuasselMessageType.Plain,
+        string sender = "alice!user@example",
+        QuasselMessageFlags flags = QuasselMessageFlags.None)
     {
         return new QuasselMessage(
             new MsgId(1),
             DateTimeOffset.Parse("2026-03-28T12:00:00+01:00"),
             new QuasselBufferInfo(new BufferId(1), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel"),
-            QuasselMessageType.Plain,
+            type,
             contents,
-            "alice!user@example",
-            QuasselMessageFlags.None);
+            sender,
+            flags);
     }
 }

@@ -1215,8 +1215,10 @@
                                                            Text="{Binding SenderDisplay}"
                                                            FontWeight="Bold"
                                                            Foreground="{StaticResource AccentRust}"
-                                                           TextTrimming="CharacterEllipsis" />
-                                                <SelectableTextBlock Grid.Column="2"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           IsVisible="{Binding HasSender}" />
+                                                <SelectableTextBlock Grid.Column="{Binding MessageColumn}"
+                                                                     Grid.ColumnSpan="{Binding MessageColumnSpan}"
                                                                      Classes="messageText"
                                                                      controls:MessageInlineRenderer.Segments="{Binding Segments}"
                                                                      TextWrapping="Wrap" />
