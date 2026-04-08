@@ -28,12 +28,15 @@ QuasselGlow is an early-stage project. The current build includes:
 
 - Quassel core connection and authentication
 - Network, buffer, and backlog loading
+- Local buffer history cache with incremental catch-up on reconnect
 - Message sending
 - Clickable links in chat messages
 - Quassel-style per-buffer input history and draft recall
+- Nick autocomplete in channels with repeated `Tab` cycling through matches
+- Automatic reconnect to the remembered server on startup
 - A custom desktop UI built with Avalonia
 - Local connection settings storage
-- Theme selection, tray support, and localized UI labels
+- Theme selection, tray support, pinned user list, and localized UI labels
 - Language selection covering the full locale list shipped by the official Quassel client
 
 ## Tech Stack
@@ -126,7 +129,7 @@ The app stores local connection settings in the user's local application data fo
 
 The selected UI language is also stored locally. QuasselGlow exposes the same locale list as the official Quassel translation set and ships with translated UI labels for that full locale set.
 
-Recent desktop polish includes persisted themes with dark mode, PM and mention alerts, tray support, emoji-friendly font fallback, composer autofocus after connecting, and automatic channel switching after `/join` and `/j`.
+Recent desktop polish includes persisted themes with dark mode, PM and mention alerts, tray support, emoji-friendly font fallback, composer autofocus after connecting, automatic reconnect for saved servers, nick autocomplete with `Tab`, a permanently pinned user list in desktop layout, and local message cache for faster channel startup after reconnecting.
 
 ## Notes
 
