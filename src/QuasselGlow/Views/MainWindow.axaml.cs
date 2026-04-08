@@ -17,6 +17,7 @@ public partial class MainWindow : Window
 {
     private const double CompactLayoutWidthThreshold = 1180;
     private const double LowResolutionHeightThreshold = 820;
+    private const int DeferredScrollQuietPeriodMs = 120;
     public bool IsMacOsPlatform { get; } = OperatingSystem.IsMacOS();
     public bool IsNonMacOsPlatform => !OperatingSystem.IsMacOS();
     private MainWindowViewModel? _viewModel;
@@ -30,6 +31,7 @@ public partial class MainWindow : Window
     private bool _isHidingToTray;
     private bool _isHiddenToTray;
     private int _autoScrollRequestId;
+    private int _deferredScrollRequestId;
 
     public MainWindow()
     {
@@ -135,7 +137,7 @@ public partial class MainWindow : Window
         {
             if (scrollToBottom)
             {
-                QueueScrollToBottom();
+                QueueScrollToBottom(immediate: false);
             }
 
             return;
@@ -151,7 +153,7 @@ public partial class MainWindow : Window
 
         if (scrollToBottom)
         {
-            QueueScrollToBottom();
+            QueueScrollToBottom(immediate: false);
         }
     }
 
@@ -179,7 +181,7 @@ public partial class MainWindow : Window
 
             if (_stickToBottom || IsNearBottom())
             {
-                QueueScrollToBottom();
+                QueueScrollToBottom(immediate: false);
             }
         }
     }
@@ -203,16 +205,27 @@ public partial class MainWindow : Window
 
         if (_stickToBottom || IsNearBottom())
         {
-            QueueScrollToBottom();
+            QueueScrollToBottom(immediate: false);
         }
     }
 
-    private void QueueScrollToBottom()
+    private void QueueScrollToBottom(bool immediate = true)
     {
         _stickToBottom = true;
         var requestId = ++_autoScrollRequestId;
+        var deferredRequestId = ++_deferredScrollRequestId;
         Dispatcher.UIThread.Post(async () =>
         {
+            if (!immediate)
+            {
+                await Task.Delay(DeferredScrollQuietPeriodMs);
+            }
+
+            if (requestId != _autoScrollRequestId || deferredRequestId != _deferredScrollRequestId)
+            {
+                return;
+            }
+
             _isAutoScrolling = true;
 
             try
@@ -240,28 +253,27 @@ public partial class MainWindow : Window
 
     private async Task ScrollToBottomAfterLayoutAsync(int requestId)
     {
-        for (var attempt = 0; attempt < 8; attempt++)
+        if (requestId != _autoScrollRequestId)
         {
-            if (requestId != _autoScrollRequestId)
-            {
-                return;
-            }
-
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                ForceChatLayout();
-                ScrollChatToBottomCore();
-                ForceChatLayout();
-                ScrollChatToBottomCore();
-            }, DispatcherPriority.Loaded);
-
-            if (IsNearBottom())
-            {
-                return;
-            }
-
-            await Task.Delay(16);
+            return;
         }
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ForceChatLayout();
+            ScrollChatToBottomCore();
+        }, DispatcherPriority.Loaded);
+
+        if (requestId != _autoScrollRequestId)
+        {
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ForceChatLayout();
+            ScrollChatToBottomCore();
+        }, DispatcherPriority.Background);
     }
 
     private void ScrollChatToBottomCore()

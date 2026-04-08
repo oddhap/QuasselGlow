@@ -82,6 +82,35 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task SessionStateReceived_LoadsCachedMessagesBeforeRequestingBacklog()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(41), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        session.CachedMessages[channelBuffer.BufferId] =
+        [
+            new QuasselMessage(
+                new MsgId(100),
+                DateTimeOffset.Parse("2026-04-08T20:00:00+02:00"),
+                channelBuffer,
+                QuasselMessageType.Plain,
+                "cached line",
+                "alice!user@example",
+                QuasselMessageFlags.Backlog)
+        ];
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
+        await Task.Delay(25);
+
+        Assert.NotNull(viewModel.SelectedBuffer);
+        Assert.Single(viewModel.SelectedBuffer.Messages);
+        Assert.Equal("cached line", viewModel.SelectedBuffer.Messages[0].LineText);
+        Assert.Single(session.BacklogRequests);
+    }
+
+    [Fact]
     public void ErrorState_ClearsBuffersAndReopensConnectionEditor()
     {
         var session = new FakeSessionService();
@@ -952,6 +981,7 @@ public sealed class MainWindowViewModelTests
         public List<(QuasselBufferInfo bufferInfo, string text)> SentInputs { get; } = [];
         public List<QuasselBufferInfo> DeletedBuffers { get; } = [];
         public List<ConnectionProfile> ConnectRequests { get; } = [];
+        public Dictionary<BufferId, IReadOnlyList<QuasselMessage>> CachedMessages { get; } = [];
 
         public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
         {
@@ -963,6 +993,13 @@ public sealed class MainWindowViewModelTests
         {
             SentInputs.Add((bufferInfo, text));
             return Task.CompletedTask;
+        }
+
+        public IReadOnlyList<QuasselMessage> GetCachedMessages(QuasselBufferInfo bufferInfo, int amount = 120)
+        {
+            return CachedMessages.TryGetValue(bufferInfo.BufferId, out var messages)
+                ? messages.TakeLast(amount).ToArray()
+                : [];
         }
 
         public Task EnsureBacklogAsync(QuasselBufferInfo bufferInfo, int amount = 120, CancellationToken cancellationToken = default)

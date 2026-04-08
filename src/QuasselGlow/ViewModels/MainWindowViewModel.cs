@@ -1320,6 +1320,35 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     {
         try
         {
+            if (selected.Messages.Count == 0)
+            {
+                var cachedMessages = _session.GetCachedMessages(selected.BufferInfo, 150);
+                if (cachedMessages.Count > 0)
+                {
+                    void applyCachedMessages()
+                    {
+                        foreach (var message in cachedMessages)
+                        {
+                            selected.AddMessage(message, trackUnreadState: false);
+                        }
+
+                        if (ReferenceEquals(selected, SelectedBuffer))
+                        {
+                            RaiseSelectionTextPropertiesChanged();
+                        }
+                    }
+
+                    if (_marshalToUiThread && !Dispatcher.UIThread.CheckAccess())
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(applyCachedMessages);
+                    }
+                    else
+                    {
+                        applyCachedMessages();
+                    }
+                }
+            }
+
             await _session.EnsureBacklogAsync(selected.BufferInfo, 150).ConfigureAwait(false);
         }
         catch (Exception ex)

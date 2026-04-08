@@ -177,6 +177,27 @@ public sealed class QuasselCoreClient : IAsyncDisposable
             0).ConfigureAwait(false);
     }
 
+    public async Task RequestBacklogForwardAsync(BufferId bufferId, MsgId first, MsgId last, int amount = 0, CancellationToken cancellationToken = default)
+    {
+        if (!bufferId.IsValid)
+        {
+            return;
+        }
+
+        await SendPackedAsync(
+            SyncRequestType,
+            cancellationToken,
+            Encoding.UTF8.GetBytes("BacklogManager"),
+            Encoding.UTF8.GetBytes(string.Empty),
+            Encoding.UTF8.GetBytes("requestBacklogForward"),
+            bufferId,
+            first,
+            last,
+            amount,
+            0,
+            0).ConfigureAwait(false);
+    }
+
     public async Task DeleteBufferAsync(BufferId bufferId, CancellationToken cancellationToken = default)
     {
         if (!bufferId.IsValid)
@@ -296,6 +317,18 @@ public sealed class QuasselCoreClient : IAsyncDisposable
         {
             var bufferId = QtValueHelpers.AsBufferId(parameters[0]);
             var messages = QtValueHelpers.AsList(parameters[5]).Select(QtValueHelpers.AsMessage).ToList();
+            BacklogReceived?.Invoke(bufferId, messages);
+            foreach (var message in messages)
+            {
+                MessageReceived?.Invoke(message);
+            }
+            return;
+        }
+
+        if (className == "BacklogManager" && slotName == "receiveBacklogForward" && parameters.Count >= 7)
+        {
+            var bufferId = QtValueHelpers.AsBufferId(parameters[0]);
+            var messages = QtValueHelpers.AsList(parameters[6]).Select(QtValueHelpers.AsMessage).ToList();
             BacklogReceived?.Invoke(bufferId, messages);
             foreach (var message in messages)
             {

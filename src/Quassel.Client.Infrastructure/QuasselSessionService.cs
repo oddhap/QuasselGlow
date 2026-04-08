@@ -5,9 +5,13 @@ namespace Quassel.Client.Infrastructure;
 
 public sealed class QuasselSessionService : IQuasselSessionService
 {
+    private const int CachedMessageLimit = 400;
+
     private readonly QuasselCoreClient _client = new();
+    private readonly LocalBufferMessageCacheStore _messageCacheStore = new();
     private readonly HashSet<BufferId> _requestedBacklog = [];
     private readonly HashSet<string> _requestedChannelStates = [];
+    private ConnectionProfile? _currentProfile;
 
     public event Action<QuasselConnectionState, string?>? ConnectionStateChanged;
     public event Action<QuasselSessionState>? SessionStateReceived;
@@ -27,6 +31,7 @@ public sealed class QuasselSessionService : IQuasselSessionService
         _client.BufferInfoUpdated += HandleBufferInfoUpdated;
         _client.ChannelStateReceived += state => ChannelStateReceived?.Invoke(state);
         _client.ChannelTopicReceived += topic => ChannelTopicReceived?.Invoke(topic);
+        _client.BacklogReceived += HandleBacklogReceived;
         _client.MessageReceived += HandleMessageReceived;
         _client.StatusReceived += message => StatusReceived?.Invoke(message);
         _client.NetworkRemoved += id => NetworkRemoved?.Invoke(id);
@@ -34,6 +39,7 @@ public sealed class QuasselSessionService : IQuasselSessionService
 
     public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
     {
+        _currentProfile = profile;
         _requestedBacklog.Clear();
         _requestedChannelStates.Clear();
         return _client.ConnectAsync(profile, cancellationToken);
@@ -51,8 +57,20 @@ public sealed class QuasselSessionService : IQuasselSessionService
         return _client.SendInputAsync(bufferInfo, text, cancellationToken);
     }
 
+    public IReadOnlyList<QuasselMessage> GetCachedMessages(QuasselBufferInfo bufferInfo, int amount = 120)
+    {
+        return _currentProfile is null
+            ? []
+            : _messageCacheStore.LoadMessages(_currentProfile, bufferInfo, amount);
+    }
+
     public Task DeleteBufferAsync(QuasselBufferInfo bufferInfo, CancellationToken cancellationToken = default)
     {
+        if (_currentProfile is not null)
+        {
+            _messageCacheStore.RemoveBuffer(_currentProfile, bufferInfo.BufferId);
+        }
+
         return _client.DeleteBufferAsync(bufferInfo.BufferId, cancellationToken);
     }
 
@@ -61,6 +79,21 @@ public sealed class QuasselSessionService : IQuasselSessionService
         if (!_requestedBacklog.Add(bufferInfo.BufferId))
         {
             return;
+        }
+
+        if (_currentProfile is not null)
+        {
+            var latestCachedMessageId = _messageCacheStore.GetLatestMessageId(_currentProfile, bufferInfo.BufferId);
+            if (latestCachedMessageId.IsValid)
+            {
+                await _client.RequestBacklogForwardAsync(
+                    bufferInfo.BufferId,
+                    new MsgId(latestCachedMessageId.Value + 1),
+                    new MsgId(-1),
+                    0,
+                    cancellationToken).ConfigureAwait(false);
+                return;
+            }
         }
 
         await _client.RequestBacklogAsync(bufferInfo.BufferId, amount, cancellationToken).ConfigureAwait(false);
@@ -105,6 +138,11 @@ public sealed class QuasselSessionService : IQuasselSessionService
 
     private void HandleMessageReceived(QuasselMessage message)
     {
+        if (_currentProfile is not null && !message.IsBacklog)
+        {
+            _messageCacheStore.AppendMessage(_currentProfile, message, CachedMessageLimit);
+        }
+
         MessageReceived?.Invoke(message);
 
         if (message.BufferInfo.Type == QuasselBufferType.Channel
@@ -113,6 +151,16 @@ public sealed class QuasselSessionService : IQuasselSessionService
         {
             _ = _client.RequestChannelStateAsync(message.BufferInfo.NetworkId, message.BufferInfo.BufferName);
         }
+    }
+
+    private void HandleBacklogReceived(BufferId bufferId, IReadOnlyList<QuasselMessage> messages)
+    {
+        if (_currentProfile is null || !bufferId.IsValid || messages.Count == 0)
+        {
+            return;
+        }
+
+        _messageCacheStore.StoreMessages(_currentProfile, messages[0].BufferInfo, messages, CachedMessageLimit);
     }
 
     private Task RequestChannelStateIfNeededAsync(QuasselBufferInfo bufferInfo)
