@@ -506,38 +506,28 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public void ToggleUserListPinned_OpensPanePersistsSettingAndSwitchesDisplayMode()
+    public void UserList_IsAlwaysPinnedInDesktopLayout()
     {
         var session = new FakeSessionService();
         var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
         var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
 
         Assert.False(viewModel.IsControlPanelOpen);
-        Assert.False(viewModel.IsUserListPinned);
-        Assert.Equal(SplitViewDisplayMode.Overlay, viewModel.UserListDisplayMode);
-        Assert.True(viewModel.UseOverlayDismissForUserList);
-        Assert.Equal(viewModel.Strings["Pin"], viewModel.UserListPinButtonText);
-
-        viewModel.ToggleUserListPinnedCommand.Execute(null);
-
-        var pinnedSettings = settings.Load();
-        Assert.True(viewModel.IsControlPanelOpen);
-        Assert.True(viewModel.IsUserListPinned);
         Assert.Equal(SplitViewDisplayMode.Inline, viewModel.UserListDisplayMode);
         Assert.False(viewModel.UseOverlayDismissForUserList);
-        Assert.Equal(viewModel.Strings["Unpin"], viewModel.UserListPinButtonText);
-        Assert.True(pinnedSettings.IsControlPanelOpen);
-        Assert.True(pinnedSettings.IsUserListPinned);
+    }
 
-        viewModel.ToggleUserListPinnedCommand.Execute(null);
+    [Fact]
+    public void UserList_UsesOverlayInCompactLayout()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
 
-        var unpinnedSettings = settings.Load();
-        Assert.False(viewModel.IsUserListPinned);
+        viewModel.SetCompactLayout(true);
+
         Assert.Equal(SplitViewDisplayMode.Overlay, viewModel.UserListDisplayMode);
         Assert.True(viewModel.UseOverlayDismissForUserList);
-        Assert.Equal(viewModel.Strings["Pin"], viewModel.UserListPinButtonText);
-        Assert.True(unpinnedSettings.IsControlPanelOpen);
-        Assert.False(unpinnedSettings.IsUserListPinned);
     }
 
     [Fact]

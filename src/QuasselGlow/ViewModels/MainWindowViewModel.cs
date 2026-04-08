@@ -364,17 +364,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public bool ShowSelectedChannelUsersUnavailable => SelectedBuffer is not null && !SelectedBufferSupportsUserList;
 
-    public SplitViewDisplayMode UserListDisplayMode => IsUserListPinned && !IsCompactLayout
-        ? SplitViewDisplayMode.Inline
-        : SplitViewDisplayMode.Overlay;
+    public SplitViewDisplayMode UserListDisplayMode => IsCompactLayout
+        ? SplitViewDisplayMode.Overlay
+        : SplitViewDisplayMode.Inline;
 
     public bool IsCompactLayout => _isCompactLayout;
 
     public bool IsLowResolutionLayout => _isLowResolutionLayout;
 
-    public bool UseOverlayDismissForUserList => IsCompactLayout || !IsUserListPinned;
-
-    public string UserListPinButtonText => _strings[IsUserListPinned ? "Unpin" : "Pin"];
+    public bool UseOverlayDismissForUserList => IsCompactLayout;
 
     public void SetCompactLayout(bool isCompact)
     {
@@ -978,7 +976,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     {
         OnPropertyChanged(nameof(UserListDisplayMode));
         OnPropertyChanged(nameof(UseOverlayDismissForUserList));
-        OnPropertyChanged(nameof(UserListPinButtonText));
         SaveSettingsIfReady();
     }
 
@@ -1534,7 +1531,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(ShowSelectedChannelUsersUnavailable));
         OnPropertyChanged(nameof(UserListDisplayMode));
         OnPropertyChanged(nameof(UseOverlayDismissForUserList));
-        OnPropertyChanged(nameof(UserListPinButtonText));
         OnPropertyChanged(nameof(UserListStatusText));
         OnPropertyChanged(nameof(ControlPanelNetworkNameText));
         OnPropertyChanged(nameof(ControlPanelServerText));
