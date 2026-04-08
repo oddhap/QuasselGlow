@@ -568,6 +568,126 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void NickAutocomplete_CompletesFirstChannelNickWithColon()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(50), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
+        session.EmitChannelState(new QuasselChannelState(
+            new NetworkId(1),
+            "#quassel",
+            "Current topic",
+            [
+                new QuasselChannelUser("alice", "o"),
+                new QuasselChannelUser("bob", string.Empty)
+            ]));
+
+        viewModel.DraftMessage = "bo";
+
+        var handled = viewModel.TryAutocompleteNick(2, out var caretIndex);
+
+        Assert.True(handled);
+        Assert.Equal("bob: ", viewModel.DraftMessage);
+        Assert.Equal(5, caretIndex);
+    }
+
+    [Fact]
+    public void NickAutocomplete_DoesNotTriggerAfterFirstWord()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(51), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
+        session.EmitChannelState(new QuasselChannelState(
+            new NetworkId(1),
+            "#quassel",
+            "Current topic",
+            [
+                new QuasselChannelUser("bob", string.Empty)
+            ]));
+
+        viewModel.DraftMessage = "hei bo";
+
+        var handled = viewModel.TryAutocompleteNick(viewModel.DraftMessage.Length, out _);
+
+        Assert.False(handled);
+        Assert.Equal("hei bo", viewModel.DraftMessage);
+    }
+
+    [Fact]
+    public void NickAutocomplete_RepeatedTabCyclesAlphabeticallyThroughMatches()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(52), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
+        session.EmitChannelState(new QuasselChannelState(
+            new NetworkId(1),
+            "#quassel",
+            "Current topic",
+            [
+                new QuasselChannelUser("bobby", "o"),
+                new QuasselChannelUser("ben", string.Empty),
+                new QuasselChannelUser("bob", "v")
+            ]));
+
+        viewModel.DraftMessage = "b";
+
+        Assert.True(viewModel.TryAutocompleteNick(1, out var firstCaretIndex));
+        Assert.Equal("ben: ", viewModel.DraftMessage);
+        Assert.Equal(5, firstCaretIndex);
+
+        Assert.True(viewModel.TryAutocompleteNick(firstCaretIndex, out var secondCaretIndex));
+        Assert.Equal("bob: ", viewModel.DraftMessage);
+        Assert.Equal(5, secondCaretIndex);
+
+        Assert.True(viewModel.TryAutocompleteNick(secondCaretIndex, out var thirdCaretIndex));
+        Assert.Equal("bobby: ", viewModel.DraftMessage);
+        Assert.Equal(7, thirdCaretIndex);
+    }
+
+    [Fact]
+    public void NickAutocomplete_RepeatedTabWrapsBackToFirstMatch()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(53), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
+        session.EmitChannelState(new QuasselChannelState(
+            new NetworkId(1),
+            "#quassel",
+            "Current topic",
+            [
+                new QuasselChannelUser("bob", string.Empty),
+                new QuasselChannelUser("ben", string.Empty)
+            ]));
+
+        viewModel.DraftMessage = "b";
+
+        Assert.True(viewModel.TryAutocompleteNick(1, out var caretIndex));
+        Assert.Equal("ben: ", viewModel.DraftMessage);
+
+        Assert.True(viewModel.TryAutocompleteNick(caretIndex, out caretIndex));
+        Assert.Equal("bob: ", viewModel.DraftMessage);
+
+        Assert.True(viewModel.TryAutocompleteNick(caretIndex, out _));
+        Assert.Equal("ben: ", viewModel.DraftMessage);
+    }
+
+    [Fact]
     public async Task GiveOpToChannelUser_SendsModeCommandToSelectedChannel()
     {
         var session = new FakeSessionService();

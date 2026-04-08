@@ -39,6 +39,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly ObservableCollection<AppDisplayOption> _supportedThemes = [];
     private readonly ObservableCollection<AppDisplayOption> _supportedThemeModes = [];
     private bool _canAcknowledgeSelectedBuffer = true;
+    private bool _isApplyingNickAutocomplete;
+    private NickAutocompleteState? _nickAutocompleteState;
 
     [ObservableProperty]
     private string _host = string.Empty;
@@ -639,6 +641,81 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         return true;
     }
 
+    public bool TryAutocompleteNick(int caretIndex, out int newCaretIndex)
+    {
+        newCaretIndex = caretIndex;
+
+        if (SelectedBuffer?.BufferInfo.Type != QuasselBufferType.Channel)
+        {
+            return false;
+        }
+
+        var text = DraftMessage ?? string.Empty;
+        if (text.Length == 0)
+        {
+            return false;
+        }
+
+        caretIndex = Math.Clamp(caretIndex, 0, text.Length);
+
+        if (TryContinueNickAutocomplete(text, caretIndex, out newCaretIndex))
+        {
+            return true;
+        }
+
+        var tokenStart = caretIndex;
+        while (tokenStart > 0 && !char.IsWhiteSpace(text[tokenStart - 1]))
+        {
+            tokenStart--;
+        }
+
+        if (text[..tokenStart].Any(static character => !char.IsWhiteSpace(character)))
+        {
+            return false;
+        }
+
+        var tokenEnd = caretIndex;
+        while (tokenEnd < text.Length && !char.IsWhiteSpace(text[tokenEnd]))
+        {
+            tokenEnd++;
+        }
+
+        var typedNick = text[tokenStart..caretIndex].Trim().TrimEnd(':');
+        if (string.IsNullOrWhiteSpace(typedNick))
+        {
+            return false;
+        }
+
+        var matches = SelectedChannelUsers
+            .Select(user => user.Nick)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(nick => nick.StartsWith(typedNick, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(nick => nick, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (matches.Length == 0)
+        {
+            return false;
+        }
+
+        var suffix = text[tokenEnd..];
+        if (suffix.Length > 0 && char.IsWhiteSpace(suffix[0]))
+        {
+            suffix = suffix.TrimStart();
+        }
+
+        _nickAutocompleteState = new NickAutocompleteState(
+            SelectedBuffer.BufferInfo.BufferId,
+            text[..tokenStart],
+            typedNick,
+            suffix,
+            matches,
+            0);
+
+        ApplyNickAutocompleteMatch(_nickAutocompleteState, 0, out newCaretIndex);
+        return true;
+    }
+
     [RelayCommand]
     private Task GiveOpToChannelUserAsync(ChannelUserViewModel? user)
     {
@@ -825,6 +902,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     partial void OnDraftMessageChanged(string value)
     {
+        if (!_isApplyingNickAutocomplete)
+        {
+            ResetNickAutocomplete();
+        }
+
         if (SelectedBuffer is not null)
         {
             GetComposerHistoryState(SelectedBuffer.BufferInfo.BufferId).InputLine = value;
@@ -1358,6 +1440,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         state.TempEntries.Clear();
         ResetComposerHistoryPosition(state);
         state.InputLine = string.Empty;
+        ResetNickAutocomplete();
     }
 
     private static bool AddToComposerHistory(ComposerHistoryState state, string text, bool temporary)
@@ -1619,6 +1702,72 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         App.CurrentApp?.ApplyAppearance(SelectedThemeKey, SelectedThemeModeKey);
     }
 
+    private bool TryContinueNickAutocomplete(string text, int caretIndex, out int newCaretIndex)
+    {
+        newCaretIndex = caretIndex;
+
+        if (_nickAutocompleteState is null || SelectedBuffer is null)
+        {
+            return false;
+        }
+
+        if (_nickAutocompleteState.BufferId != SelectedBuffer.BufferInfo.BufferId)
+        {
+            ResetNickAutocomplete();
+            return false;
+        }
+
+        var expectedText = BuildNickAutocompleteText(
+            _nickAutocompleteState.LeadingText,
+            _nickAutocompleteState.Matches[_nickAutocompleteState.MatchIndex],
+            _nickAutocompleteState.Suffix);
+
+        var expectedCaretIndex = _nickAutocompleteState.LeadingText.Length
+            + _nickAutocompleteState.Matches[_nickAutocompleteState.MatchIndex].Length
+            + 2;
+
+        if (!string.Equals(text, expectedText, StringComparison.Ordinal)
+            || caretIndex != expectedCaretIndex)
+        {
+            ResetNickAutocomplete();
+            return false;
+        }
+
+        var nextIndex = (_nickAutocompleteState.MatchIndex + 1) % _nickAutocompleteState.Matches.Length;
+        ApplyNickAutocompleteMatch(_nickAutocompleteState, nextIndex, out newCaretIndex);
+        return true;
+    }
+
+    private void ApplyNickAutocompleteMatch(NickAutocompleteState state, int matchIndex, out int newCaretIndex)
+    {
+        state.MatchIndex = matchIndex;
+        _isApplyingNickAutocomplete = true;
+
+        try
+        {
+            DraftMessage = BuildNickAutocompleteText(
+                state.LeadingText,
+                state.Matches[matchIndex],
+                state.Suffix);
+        }
+        finally
+        {
+            _isApplyingNickAutocomplete = false;
+        }
+
+        newCaretIndex = state.LeadingText.Length + state.Matches[matchIndex].Length + 2;
+    }
+
+    private static string BuildNickAutocompleteText(string leadingText, string nick, string suffix)
+    {
+        return string.Concat(leadingText, nick, ": ", suffix);
+    }
+
+    private void ResetNickAutocomplete()
+    {
+        _nickAutocompleteState = null;
+    }
+
     private string BuildPendingAlertSummary()
     {
         var mentionCount = _buffersById.Values.Count(buffer => buffer.HasMentionAlert);
@@ -1840,5 +1989,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         public Dictionary<int, string> TempEntries { get; } = [];
         public int NavigationIndex { get; set; }
         public string InputLine { get; set; } = string.Empty;
+    }
+
+    private sealed class NickAutocompleteState(
+        BufferId bufferId,
+        string leadingText,
+        string prefix,
+        string suffix,
+        string[] matches,
+        int matchIndex)
+    {
+        public BufferId BufferId { get; } = bufferId;
+        public string LeadingText { get; } = leadingText;
+        public string Prefix { get; } = prefix;
+        public string Suffix { get; } = suffix;
+        public string[] Matches { get; } = matches;
+        public int MatchIndex { get; set; } = matchIndex;
     }
 }

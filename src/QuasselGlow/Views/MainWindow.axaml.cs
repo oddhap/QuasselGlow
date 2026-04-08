@@ -428,19 +428,31 @@ public partial class MainWindow : Window
             return;
         }
 
-        var handled = e.Key switch
+        var handled = false;
+        var caretIndex = textBox.CaretIndex;
+
+        switch (e.Key)
         {
-            Key.Up => _viewModel.TryRecallPreviousDraft(),
-            Key.Down => _viewModel.TryRecallNextDraft(),
-            _ => false
-        };
+            case Key.Up:
+                handled = _viewModel.TryRecallPreviousDraft();
+                caretIndex = textBox.Text?.Length ?? 0;
+                break;
+            case Key.Down:
+                handled = _viewModel.TryRecallNextDraft();
+                caretIndex = textBox.Text?.Length ?? 0;
+                break;
+            case Key.Tab:
+                handled = _viewModel.TryAutocompleteNick(textBox.CaretIndex, out caretIndex);
+                break;
+        }
 
         if (!handled)
         {
             return;
         }
 
-        textBox.CaretIndex = textBox.Text?.Length ?? 0;
+        textBox.Text = _viewModel.DraftMessage;
+        textBox.CaretIndex = Math.Clamp(caretIndex, 0, textBox.Text?.Length ?? 0);
         e.Handled = true;
     }
 
