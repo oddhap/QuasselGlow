@@ -79,6 +79,16 @@
             <Setter Property="Background" Value="{StaticResource MessageRowStatusBg}" />
         </Style>
 
+        <Style Selector="TextBlock.statusMeta">
+            <Setter Property="Foreground" Value="{StaticResource InkSoft}" />
+            <Setter Property="Opacity" Value="0.72" />
+        </Style>
+
+        <Style Selector="SelectableTextBlock.statusBody">
+            <Setter Property="Foreground" Value="{StaticResource InkSoft}" />
+            <Setter Property="Opacity" Value="0.78" />
+        </Style>
+
         <Style Selector="Button.infoToggle">
             <Setter Property="Background" Value="{StaticResource AccentSky}" />
             <Setter Property="BorderBrush" Value="{StaticResource AccentTeal}" />
@@ -1212,22 +1222,25 @@
                                                 Classes.self="{Binding IsSelf}"
                                                 Classes.highlight="{Binding IsHighlight}"
                                                 Classes.status="{Binding IsStatus}">
-                                            <Grid ColumnDefinitions="52,120,*"
-                                                  ColumnSpacing="12"
+                                            <Grid ColumnDefinitions="48,Auto,*"
+                                                  ColumnSpacing="8"
                                                   Margin="0,1,0,0">
                                                 <TextBlock Text="{Binding TimestampText}"
+                                                           Classes.statusMeta="{Binding IsStatus}"
                                                            Foreground="{StaticResource InkSoft}"
                                                            FontFamily="{StaticResource MonoFontFamily}"
                                                            VerticalAlignment="Top" />
                                                 <TextBlock Grid.Column="1"
                                                            Text="{Binding SenderDisplay}"
                                                            FontWeight="Bold"
+                                                           MaxWidth="96"
                                                            Foreground="{StaticResource AccentRust}"
                                                            TextTrimming="CharacterEllipsis"
                                                            IsVisible="{Binding HasSender}" />
                                                 <SelectableTextBlock Grid.Column="{Binding MessageColumn}"
                                                                      Grid.ColumnSpan="{Binding MessageColumnSpan}"
                                                                      Classes="messageText"
+                                                                     Classes.statusBody="{Binding IsStatus}"
                                                                      controls:MessageInlineRenderer.Segments="{Binding Segments}"
                                                                      TextWrapping="Wrap" />
                                             </Grid>
