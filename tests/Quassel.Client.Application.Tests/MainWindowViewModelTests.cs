@@ -23,6 +23,47 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void StartupAutoConnect_UsesStoredServerWhenLoginIsRemembered()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(
+            Host: "chat.example",
+            Port: 4242,
+            Username: "alice",
+            Password: "hemmelig",
+            TrustInvalidCertificates: true,
+            RememberLogin: true,
+            AutoConnectOnStartup: true));
+
+        _ = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        var profile = Assert.Single(session.ConnectRequests);
+        Assert.Equal("chat.example", profile.Host);
+        Assert.Equal(4242, profile.Port);
+        Assert.Equal("alice", profile.Username);
+        Assert.Equal("hemmelig", profile.Password);
+        Assert.True(profile.TrustInvalidCertificates);
+    }
+
+    [Fact]
+    public void DisablingRememberLogin_TurnsOffAutoConnect()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(
+            Host: "chat.example",
+            Username: "alice",
+            Password: "hemmelig",
+            RememberLogin: true,
+            AutoConnectOnStartup: true));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        viewModel.RememberLogin = false;
+
+        Assert.False(viewModel.AutoConnectOnStartup);
+        Assert.False(settings.Load().AutoConnectOnStartup);
+    }
+
+    [Fact]
     public void SessionStateReceived_SelectsInitialBufferAndUpdatesSessionSummary()
     {
         var session = new FakeSessionService();
@@ -800,8 +841,13 @@ public sealed class MainWindowViewModelTests
         public List<(QuasselBufferInfo bufferInfo, int amount)> BacklogRequests { get; } = [];
         public List<(QuasselBufferInfo bufferInfo, string text)> SentInputs { get; } = [];
         public List<QuasselBufferInfo> DeletedBuffers { get; } = [];
+        public List<ConnectionProfile> ConnectRequests { get; } = [];
 
-        public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
+        {
+            ConnectRequests.Add(profile);
+            return Task.CompletedTask;
+        }
         public Task DisconnectAsync() => Task.CompletedTask;
         public Task SendInputAsync(QuasselBufferInfo bufferInfo, string text, CancellationToken cancellationToken = default)
         {

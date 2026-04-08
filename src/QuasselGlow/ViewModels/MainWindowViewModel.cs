@@ -59,6 +59,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private bool _rememberLogin;
 
     [ObservableProperty]
+    private bool _autoConnectOnStartup;
+
+    [ObservableProperty]
     private bool _isConnectionEditorOpen;
 
     [ObservableProperty]
@@ -121,6 +124,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         _session.MessageReceived += message => RunOnUiThread(() => ApplyMessage(message));
         _session.StatusReceived += OnStatusReceived;
         _session.NetworkRemoved += networkId => RunOnUiThread(() => RemoveNetwork(networkId));
+
+        if (ShouldAutoConnectOnStartup())
+        {
+            _ = ConnectAsync();
+        }
     }
 
     public UiTextCatalog Strings => _strings;
@@ -828,6 +836,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     partial void OnRememberLoginChanged(bool value)
     {
+        if (!value && AutoConnectOnStartup)
+        {
+            AutoConnectOnStartup = false;
+            return;
+        }
+
+        SaveSettingsIfReady();
+    }
+
+    partial void OnAutoConnectOnStartupChanged(bool value)
+    {
+        if (value && !RememberLogin)
+        {
+            RememberLogin = true;
+        }
+
         SaveSettingsIfReady();
     }
 
@@ -1238,6 +1262,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         Password = settings.Password;
         TrustInvalidCertificates = settings.TrustInvalidCertificates;
         RememberLogin = settings.RememberLogin;
+        AutoConnectOnStartup = settings.AutoConnectOnStartup;
         IsControlPanelOpen = settings.IsControlPanelOpen;
         IsUserListPinned = settings.IsUserListPinned;
         SelectedThemeKey = settings.ThemeKey;
@@ -1254,12 +1279,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             RememberLogin ? Password : string.Empty,
             TrustInvalidCertificates,
             RememberLogin,
+            RememberLogin && AutoConnectOnStartup,
             IsControlPanelOpen,
             IsUserListPinned,
             SelectedLanguageCode,
             SelectedThemeKey,
             SelectedThemeModeKey,
             MinimizeToTrayEnabled));
+    }
+
+    private bool ShouldAutoConnectOnStartup()
+    {
+        return AutoConnectOnStartup
+            && RememberLogin
+            && !string.IsNullOrWhiteSpace(Host)
+            && !string.IsNullOrWhiteSpace(Username)
+            && !string.IsNullOrWhiteSpace(Password);
     }
 
     private void SaveSettingsIfReady()

@@ -20,6 +20,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             Password: "hemmelig",
             TrustInvalidCertificates: true,
             RememberLogin: true,
+            AutoConnectOnStartup: true,
             IsControlPanelOpen: true,
             IsUserListPinned: true,
             LanguageCode: "nb",
@@ -36,6 +37,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.Equal(expected.Password, actual.Password);
         Assert.Equal(expected.TrustInvalidCertificates, actual.TrustInvalidCertificates);
         Assert.True(actual.RememberLogin);
+        Assert.True(actual.AutoConnectOnStartup);
         Assert.True(actual.IsControlPanelOpen);
         Assert.True(actual.IsUserListPinned);
         Assert.Equal(expected.LanguageCode, actual.LanguageCode);
@@ -58,6 +60,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             Password: "passord",
             TrustInvalidCertificates: true,
             RememberLogin: false,
+            AutoConnectOnStartup: true,
             IsControlPanelOpen: false,
             IsUserListPinned: false,
             LanguageCode: "en_US",
@@ -71,6 +74,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.Equal(4242, actual.Port);
         Assert.True(actual.TrustInvalidCertificates);
         Assert.False(actual.RememberLogin);
+        Assert.False(actual.AutoConnectOnStartup);
         Assert.False(actual.IsControlPanelOpen);
         Assert.False(actual.IsUserListPinned);
         Assert.Equal("en_US", actual.LanguageCode);

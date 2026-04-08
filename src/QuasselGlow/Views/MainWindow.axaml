@@ -771,6 +771,10 @@
                                                   Content="{Binding Strings[RememberLogin]}"
                                                   IsChecked="{Binding RememberLogin}" />
                                         <CheckBox VerticalAlignment="Center"
+                                                  Content="{Binding Strings[AutoConnectOnStartup]}"
+                                                  IsChecked="{Binding AutoConnectOnStartup}"
+                                                  IsEnabled="{Binding RememberLogin}" />
+                                        <CheckBox VerticalAlignment="Center"
                                                   Content="{Binding Strings[AllowInsecureTls]}"
                                                   IsChecked="{Binding TrustInvalidCertificates}" />
                                     </StackPanel>
@@ -1009,6 +1013,10 @@
                                         <CheckBox VerticalAlignment="Center"
                                                   Content="{Binding Strings[RememberLogin]}"
                                                   IsChecked="{Binding RememberLogin}" />
+                                        <CheckBox VerticalAlignment="Center"
+                                                  Content="{Binding Strings[AutoConnectOnStartup]}"
+                                                  IsChecked="{Binding AutoConnectOnStartup}"
+                                                  IsEnabled="{Binding RememberLogin}" />
                                         <CheckBox VerticalAlignment="Center"
                                                   Content="{Binding Strings[AllowInsecureTls]}"
                                                   IsChecked="{Binding TrustInvalidCertificates}" />
@@ -1694,6 +1702,10 @@
                                                     <CheckBox VerticalAlignment="Center"
                                                               Content="{Binding Strings[RememberLogin]}"
                                                               IsChecked="{Binding RememberLogin}" />
+                                                    <CheckBox VerticalAlignment="Center"
+                                                              Content="{Binding Strings[AutoConnectOnStartup]}"
+                                                              IsChecked="{Binding AutoConnectOnStartup}"
+                                                              IsEnabled="{Binding RememberLogin}" />
                                                     <CheckBox VerticalAlignment="Center"
                                                               Content="{Binding Strings[AllowInsecureTls]}"
                                                               IsChecked="{Binding TrustInvalidCertificates}" />

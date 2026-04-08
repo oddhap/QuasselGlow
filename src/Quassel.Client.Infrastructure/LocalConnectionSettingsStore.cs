@@ -64,6 +64,7 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 persisted.RememberLogin ? password : string.Empty,
                 persisted.TrustInvalidCertificates,
                 persisted.RememberLogin,
+                persisted.RememberLogin && persisted.AutoConnectOnStartup,
                 persisted.IsControlPanelOpen,
                 persisted.IsUserListPinned,
                 string.IsNullOrWhiteSpace(persisted.LanguageCode) ? string.Empty : persisted.LanguageCode.Trim(),
@@ -97,6 +98,7 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                     : string.Empty,
                 TrustInvalidCertificates = settings.TrustInvalidCertificates,
                 RememberLogin = settings.RememberLogin,
+                AutoConnectOnStartup = settings.RememberLogin && settings.AutoConnectOnStartup,
                 IsControlPanelOpen = settings.IsControlPanelOpen,
                 IsUserListPinned = settings.IsUserListPinned,
                 LanguageCode = string.IsNullOrWhiteSpace(settings.LanguageCode) ? string.Empty : settings.LanguageCode.Trim(),
@@ -201,6 +203,7 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
         public string Password { get; init; } = string.Empty;
         public bool TrustInvalidCertificates { get; init; }
         public bool RememberLogin { get; init; }
+        public bool AutoConnectOnStartup { get; init; }
         public bool IsControlPanelOpen { get; init; }
         public bool IsUserListPinned { get; init; }
         public string LanguageCode { get; init; } = string.Empty;

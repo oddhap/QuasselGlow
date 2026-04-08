@@ -7,6 +7,7 @@ public sealed record StoredConnectionSettings(
     string Password = "",
     bool TrustInvalidCertificates = false,
     bool RememberLogin = false,
+    bool AutoConnectOnStartup = false,
     bool IsControlPanelOpen = false,
     bool IsUserListPinned = false,
     string LanguageCode = "",

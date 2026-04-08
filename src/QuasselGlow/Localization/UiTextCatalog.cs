@@ -262,6 +262,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("Username", "Username"),
             ("Password", "Password"),
             ("RememberLogin", "Remember login"),
+            ("AutoConnectOnStartup", "Connect on startup"),
             ("AllowInsecureTls", "Allow insecure TLS"),
             ("MinimizeToTray", "Minimize to tray"),
             ("Done", "Done"),
@@ -377,6 +378,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("Username", "Bruker"),
             ("Password", "Passord"),
             ("RememberLogin", "Husk innlogging"),
+            ("AutoConnectOnStartup", "Koble til ved oppstart"),
             ("AllowInsecureTls", "Godta usikker TLS"),
             ("MinimizeToTray", "Minimer til tray"),
             ("Done", "Ferdig"),
@@ -2256,6 +2258,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("KickBan", "Kick + ban"),
             ("Whois", "Whois"),
             ("Overview", "Overview"),
+            ("AutoConnectOnStartup", "Connect on startup"),
             ("ConnectionSummaryEndpointOnly", "{0}"));
 
         foreach (var code in SupportedLanguageCodes)
