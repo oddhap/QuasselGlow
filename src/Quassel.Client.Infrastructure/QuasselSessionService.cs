@@ -81,21 +81,6 @@ public sealed class QuasselSessionService : IQuasselSessionService
             return;
         }
 
-        if (_currentProfile is not null)
-        {
-            var latestCachedMessageId = _messageCacheStore.GetLatestMessageId(_currentProfile, bufferInfo.BufferId);
-            if (latestCachedMessageId.IsValid)
-            {
-                await _client.RequestBacklogForwardAsync(
-                    bufferInfo.BufferId,
-                    new MsgId(latestCachedMessageId.Value + 1),
-                    new MsgId(-1),
-                    0,
-                    cancellationToken).ConfigureAwait(false);
-                return;
-            }
-        }
-
         await _client.RequestBacklogAsync(bufferInfo.BufferId, amount, cancellationToken).ConfigureAwait(false);
     }
 
