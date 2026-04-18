@@ -50,13 +50,15 @@ public partial class MainWindow : Window
     private void ConfigurePlatformWindowChrome()
     {
         ExtendClientAreaToDecorationsHint = true;
-        ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.NoChrome;
 
-        // Linux window managers can render both the native title bar and the custom Avalonia chrome
-        // at the same time unless system decorations are explicitly disabled.
-        SystemDecorations = OperatingSystem.IsLinux()
-            ? SystemDecorations.None
-            : SystemDecorations.Full;
+        // On macOS we keep the native frame, but not the native caption buttons, so the
+        // window still gets rounded corners and the standard border without duplicating
+        // the custom traffic-light buttons rendered by the app.
+        WindowDecorations = OperatingSystem.IsMacOS()
+            ? WindowDecorations.BorderOnly
+            : OperatingSystem.IsLinux()
+                ? WindowDecorations.None
+                : WindowDecorations.Full;
     }
 
     private void OnOpened(object? sender, EventArgs e)

@@ -13,9 +13,8 @@
         Height="920"
         MinWidth="920"
         MinHeight="620"
-        SystemDecorations="Full"
+        WindowDecorations="Full"
         ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="NoChrome"
         Icon="/Assets/Icons/quassel.ico"
         Title="Quassel Glow"
         mc:Ignorable="d">
@@ -753,18 +752,18 @@
 
                                 <Grid Grid.Row="1" RowDefinitions="Auto,Auto" RowSpacing="10">
                                     <Grid ColumnDefinitions="*,96" ColumnSpacing="10">
-                                        <TextBox Watermark="{Binding Strings[Host]}"
+                                        <TextBox PlaceholderText="{Binding Strings[Host]}"
                                                  Text="{Binding Host}" />
                                         <TextBox Grid.Column="1"
-                                                 Watermark="{Binding Strings[Port]}"
+                                                 PlaceholderText="{Binding Strings[Port]}"
                                                  Text="{Binding PortText}" />
                                     </Grid>
 
                                     <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="10">
-                                        <TextBox Watermark="{Binding Strings[Username]}"
+                                        <TextBox PlaceholderText="{Binding Strings[Username]}"
                                                  Text="{Binding Username}" />
                                         <TextBox Grid.Column="1"
-                                                 Watermark="{Binding Strings[Password]}"
+                                                 PlaceholderText="{Binding Strings[Password]}"
                                                  PasswordChar="*"
                                                  Text="{Binding Password}" />
                                     </Grid>
@@ -996,18 +995,18 @@
 
                                 <Grid Grid.Row="1" RowDefinitions="Auto,Auto" RowSpacing="10">
                                     <Grid ColumnDefinitions="*,96" ColumnSpacing="10">
-                                        <TextBox Watermark="{Binding Strings[Host]}"
+                                        <TextBox PlaceholderText="{Binding Strings[Host]}"
                                                  Text="{Binding Host}" />
                                         <TextBox Grid.Column="1"
-                                                 Watermark="{Binding Strings[Port]}"
+                                                 PlaceholderText="{Binding Strings[Port]}"
                                                  Text="{Binding PortText}" />
                                     </Grid>
 
                                     <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="10">
-                                        <TextBox Watermark="{Binding Strings[Username]}"
+                                        <TextBox PlaceholderText="{Binding Strings[Username]}"
                                                  Text="{Binding Username}" />
                                         <TextBox Grid.Column="1"
-                                                 Watermark="{Binding Strings[Password]}"
+                                                 PlaceholderText="{Binding Strings[Password]}"
                                                  PasswordChar="*"
                                                  Text="{Binding Password}" />
                                     </Grid>
@@ -1384,7 +1383,7 @@
 
                 <TextBox x:Name="MainComposerTextBox"
                          Grid.Column="1"
-                         Watermark="{Binding Strings[JoinOrType]}"
+                         PlaceholderText="{Binding Strings[JoinOrType]}"
                          Text="{Binding DraftMessage}"
                          KeyDown="OnComposerKeyDown"
                          IsEnabled="{Binding SelectedBuffer.AcceptsInput}">
@@ -1423,7 +1422,7 @@
 
                 <TextBox x:Name="CompactComposerTextBox"
                          Grid.Column="1"
-                         Watermark="{Binding Strings[JoinOrType]}"
+                         PlaceholderText="{Binding Strings[JoinOrType]}"
                          Text="{Binding DraftMessage}"
                          KeyDown="OnComposerKeyDown"
                          IsEnabled="{Binding SelectedBuffer.AcceptsInput}">
@@ -1688,20 +1687,20 @@
                                                   RowSpacing="10">
                                                 <Grid ColumnDefinitions="*,96"
                                                       ColumnSpacing="10">
-                                                    <TextBox Watermark="{Binding Strings[Host]}"
+                                                    <TextBox PlaceholderText="{Binding Strings[Host]}"
                                                              Text="{Binding Host}" />
                                                     <TextBox Grid.Column="1"
-                                                             Watermark="{Binding Strings[Port]}"
+                                                             PlaceholderText="{Binding Strings[Port]}"
                                                              Text="{Binding PortText}" />
                                                 </Grid>
 
                                                 <Grid Grid.Row="1"
                                                       ColumnDefinitions="*,*"
                                                       ColumnSpacing="10">
-                                                    <TextBox Watermark="{Binding Strings[Username]}"
+                                                    <TextBox PlaceholderText="{Binding Strings[Username]}"
                                                              Text="{Binding Username}" />
                                                     <TextBox Grid.Column="1"
-                                                             Watermark="{Binding Strings[Password]}"
+                                                             PlaceholderText="{Binding Strings[Password]}"
                                                              PasswordChar="*"
                                                              Text="{Binding Password}" />
                                                 </Grid>

@@ -38,11 +38,12 @@ QuasselGlow is an early-stage project. The current build includes:
 - Local connection settings storage
 - Theme selection, tray support, pinned user list, and localized UI labels
 - Language selection covering the full locale list shipped by the official Quassel client
+- Avalonia 12-based desktop UI packaging with updated placeholder APIs and macOS-specific custom title bar handling
 
 ## Tech Stack
 
 - .NET 10
-- Avalonia UI
+- Avalonia UI 12
 - CommunityToolkit.Mvvm
 - xUnit
 
@@ -130,6 +131,12 @@ The app stores local connection settings in the user's local application data fo
 The selected UI language is also stored locally. QuasselGlow exposes the same locale list as the official Quassel translation set and ships with translated UI labels for that full locale set.
 
 Recent desktop polish includes persisted themes with dark mode, PM and mention alerts, tray support, emoji-friendly font fallback, composer autofocus after connecting, automatic reconnect for saved servers, nick autocomplete with `Tab`, a permanently pinned user list in desktop layout, and local message cache for faster channel startup after reconnecting.
+
+## Recent Release Notes
+
+The `v0.2.9` update refreshes the desktop app to Avalonia 12.0.1, removes the legacy `Avalonia.Diagnostics` package that no longer ships with Avalonia 12, and resolves the vulnerable transitive package warning that appeared in the previous desktop dependency set.
+
+On macOS, the same release also fixes the custom title-bar behavior so QuasselGlow keeps its manual traffic-light controls without showing duplicate native caption buttons, while still preserving the native rounded frame and border styling.
 
 ## Notes
 

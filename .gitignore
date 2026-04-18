@@ -17,3 +17,4 @@ Thumbs.db
 test-build/
 .dotnet-home/
 .nuget/
+dist/
