@@ -12,12 +12,13 @@ public interface IQuasselSessionService : IAsyncDisposable
     event Action<QuasselChannelTopicUpdate>? ChannelTopicReceived;
     event Action<QuasselMessage>? MessageReceived;
     event Action<string>? StatusReceived;
+    event Action<MessageCacheOperationResult>? MessageCacheOperationCompleted;
     event Action<NetworkId>? NetworkRemoved;
 
     Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken = default);
     Task DisconnectAsync();
     Task SendInputAsync(QuasselBufferInfo bufferInfo, string text, CancellationToken cancellationToken = default);
-    IReadOnlyList<QuasselMessage> GetCachedMessages(QuasselBufferInfo bufferInfo, int amount = 120);
+    MessageCacheLoadResult GetCachedMessages(QuasselBufferInfo bufferInfo, int amount = 120);
     Task EnsureBacklogAsync(QuasselBufferInfo bufferInfo, int amount = 120, CancellationToken cancellationToken = default);
     Task DeleteBufferAsync(QuasselBufferInfo bufferInfo, CancellationToken cancellationToken = default);
 }

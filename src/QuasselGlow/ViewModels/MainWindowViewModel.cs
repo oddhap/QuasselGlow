@@ -26,6 +26,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly HashSet<string> _pendingChannelSwitchKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _suppressedChannelBufferKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<BufferId> _pendingDeletedChannelBuffers = [];
+    private readonly Dictionary<LocalUserStateFailureKind, string> _localUserStateFailureKeys = new();
 
     private QuasselConnectionState _connectionState = QuasselConnectionState.Disconnected;
     private BufferItemViewModel? _selectedBuffer;
@@ -106,7 +107,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         _isApplyingStoredSettings = true;
         try
         {
-            ApplyStoredSettings(_settingsStore.Load());
+            var loadResult = _settingsStore.Load();
+            ApplyStoredSettings(loadResult.Settings);
+            ApplyConnectionSettingsLoadResult(loadResult);
         }
         finally
         {
@@ -125,6 +128,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         _session.ChannelTopicReceived += topic => RunOnUiThread(() => ApplyChannelTopic(topic));
         _session.MessageReceived += message => RunOnUiThread(() => ApplyMessage(message));
         _session.StatusReceived += OnStatusReceived;
+        _session.MessageCacheOperationCompleted += result => RunOnUiThread(() => ApplyMessageCacheResult(result));
         _session.NetworkRemoved += networkId => RunOnUiThread(() => RemoveNetwork(networkId));
 
         if (ShouldAutoConnectOnStartup())
@@ -452,6 +456,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     {
         get
         {
+            if (TryGetLocalUserStateFailure(out var failureMessage))
+            {
+                return failureMessage;
+            }
+
             if (!string.IsNullOrWhiteSpace(_statusDetailOverride)
                 && !string.Equals(_statusDetailOverride, StatusText, StringComparison.Ordinal))
             {
@@ -1322,12 +1331,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         {
             if (selected.Messages.Count == 0)
             {
-                var cachedMessages = _session.GetCachedMessages(selected.BufferInfo, 150);
-                if (cachedMessages.Count > 0)
+                var cacheResult = _session.GetCachedMessages(selected.BufferInfo, 150);
+                ApplyMessageCacheResult(cacheResult.ToOperationResult());
+                if (cacheResult.Messages.Count > 0)
                 {
                     void applyCachedMessages()
                     {
-                        foreach (var message in cachedMessages)
+                        foreach (var message in cacheResult.Messages)
                         {
                             selected.AddMessage(message, trackUnreadState: false);
                         }
@@ -1380,7 +1390,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     private void SaveSettings()
     {
-        _settingsStore.Save(new StoredConnectionSettings(
+        var result = _settingsStore.Save(new StoredConnectionSettings(
             Host,
             GetPortForSettings(),
             RememberLogin ? Username : string.Empty,
@@ -1394,6 +1404,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             SelectedThemeKey,
             SelectedThemeModeKey,
             MinimizeToTrayEnabled));
+
+        ApplyConnectionSettingsSaveResult(result);
     }
 
     private bool ShouldAutoConnectOnStartup()
@@ -1413,6 +1425,86 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         }
 
         SaveSettings();
+    }
+
+    private void ApplyConnectionSettingsLoadResult(ConnectionSettingsLoadResult result)
+    {
+        if (result.Status == ConnectionSettingsLoadStatus.Failed)
+        {
+            SetLocalUserStateFailure(
+                LocalUserStateFailureKind.ConnectionPreferences,
+                "LocalStateConnectionPreferencesLoadFailed");
+            return;
+        }
+
+        ClearLocalUserStateFailure(LocalUserStateFailureKind.ConnectionPreferences);
+    }
+
+    private void ApplyConnectionSettingsSaveResult(ConnectionSettingsSaveResult result)
+    {
+        if (result.Status == ConnectionSettingsSaveStatus.Failed)
+        {
+            SetLocalUserStateFailure(
+                LocalUserStateFailureKind.ConnectionPreferences,
+                "LocalStateConnectionPreferencesSaveFailed");
+            return;
+        }
+
+        ClearLocalUserStateFailure(LocalUserStateFailureKind.ConnectionPreferences);
+
+        if (result.Status == ConnectionSettingsSaveStatus.SavedWithDegradedCredentialProtection)
+        {
+            SetLocalUserStateFailure(
+                LocalUserStateFailureKind.CredentialProtection,
+                "LocalStateCredentialProtectionDegraded");
+            return;
+        }
+
+        ClearLocalUserStateFailure(LocalUserStateFailureKind.CredentialProtection);
+    }
+
+    private void ApplyMessageCacheResult(MessageCacheOperationResult result)
+    {
+        if (result.Status == MessageCacheOperationStatus.Degraded)
+        {
+            SetLocalUserStateFailure(
+                LocalUserStateFailureKind.MessageCache,
+                "LocalStateMessageCacheDegraded");
+            return;
+        }
+
+        ClearLocalUserStateFailure(LocalUserStateFailureKind.MessageCache);
+    }
+
+    private bool TryGetLocalUserStateFailure([NotNullWhen(true)] out string? message)
+    {
+        foreach (var kind in LocalUserStateFailurePriority)
+        {
+            if (_localUserStateFailureKeys.TryGetValue(kind, out var messageKey))
+            {
+                message = _strings[messageKey];
+                return true;
+            }
+        }
+
+        message = null;
+        return false;
+    }
+
+    private void SetLocalUserStateFailure(LocalUserStateFailureKind kind, string messageKey)
+    {
+        _localUserStateFailureKeys[kind] = messageKey;
+        OnPropertyChanged(nameof(ConnectionStatusDetailText));
+        OnPropertyChanged(nameof(TrayToolTipText));
+    }
+
+    private void ClearLocalUserStateFailure(LocalUserStateFailureKind kind)
+    {
+        if (_localUserStateFailureKeys.Remove(kind))
+        {
+            OnPropertyChanged(nameof(ConnectionStatusDetailText));
+            OnPropertyChanged(nameof(TrayToolTipText));
+        }
     }
 
     private int GetPortForConnection()
@@ -2006,6 +2098,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(ShowCompactTopPanels));
         OnPropertyChanged(nameof(ShowLowResolutionOverviewButton));
         OnPropertyChanged(nameof(ShowLowResolutionOverview));
+    }
+
+    private static readonly LocalUserStateFailureKind[] LocalUserStateFailurePriority =
+    [
+        LocalUserStateFailureKind.ConnectionPreferences,
+        LocalUserStateFailureKind.CredentialProtection,
+        LocalUserStateFailureKind.MessageCache
+    ];
+
+    private enum LocalUserStateFailureKind
+    {
+        ConnectionPreferences,
+        CredentialProtection,
+        MessageCache
     }
 
     private sealed class ComposerHistoryState

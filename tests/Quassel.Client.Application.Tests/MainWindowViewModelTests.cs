@@ -23,6 +23,78 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void SettingsLoadFailure_UsesStatusDetailUntilSettingsSaveRecovers()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"))
+        {
+            LoadResult = new ConnectionSettingsLoadResult(
+                new StoredConnectionSettings(Host: "chat.example", Username: "alice"),
+                ConnectionSettingsLoadStatus.Failed,
+                "bad json")
+        };
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        Assert.Equal(viewModel.Strings["LocalStateConnectionPreferencesLoadFailed"], viewModel.ConnectionStatusDetailText);
+
+        viewModel.Host = "irc.example";
+
+        Assert.Equal(viewModel.Strings.Format("ConnectionSummaryWithIdentity", viewModel.ConnectionEndpointText, "alice"), viewModel.ConnectionStatusDetailText);
+    }
+
+    [Fact]
+    public void SettingsSaveFailure_HasPriorityOverCredentialAndMessageCacheFailures()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"))
+        {
+            NextSaveResult = ConnectionSettingsSaveResult.Failed("disk full")
+        };
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        session.EmitMessageCacheOperation(MessageCacheOperationResult.Degraded("cache failed"));
+        viewModel.RememberLogin = true;
+
+        Assert.Equal(viewModel.Strings["LocalStateConnectionPreferencesSaveFailed"], viewModel.ConnectionStatusDetailText);
+    }
+
+    [Fact]
+    public void CredentialProtectionDegraded_ClearsAfterRememberLoginIsDisabledAndSaved()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"))
+        {
+            NextSaveResult = ConnectionSettingsSaveResult.SavedWithDegradedCredentialProtection()
+        };
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        viewModel.RememberLogin = true;
+
+        Assert.Equal(viewModel.Strings["LocalStateCredentialProtectionDegraded"], viewModel.ConnectionStatusDetailText);
+
+        settings.NextSaveResult = ConnectionSettingsSaveResult.Saved();
+        viewModel.RememberLogin = false;
+
+        Assert.Equal(viewModel.Strings.Format("ConnectionSummaryWithIdentity", viewModel.ConnectionEndpointText, "alice"), viewModel.ConnectionStatusDetailText);
+    }
+
+    [Fact]
+    public void MessageCacheFailure_ClearsAfterNextSuccessfulCacheOperation()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        session.EmitMessageCacheOperation(MessageCacheOperationResult.Degraded("cache failed"));
+
+        Assert.Equal(viewModel.Strings["LocalStateMessageCacheDegraded"], viewModel.ConnectionStatusDetailText);
+
+        session.EmitMessageCacheOperation(MessageCacheOperationResult.Available());
+
+        Assert.Equal(viewModel.Strings.Format("ConnectionSummaryWithIdentity", viewModel.ConnectionEndpointText, "alice"), viewModel.ConnectionStatusDetailText);
+    }
+
+    [Fact]
     public void StartupAutoConnect_UsesStoredServerWhenLoginIsRemembered()
     {
         var session = new FakeSessionService();
@@ -60,7 +132,7 @@ public sealed class MainWindowViewModelTests
         viewModel.RememberLogin = false;
 
         Assert.False(viewModel.AutoConnectOnStartup);
-        Assert.False(settings.Load().AutoConnectOnStartup);
+        Assert.False(settings.Load().Settings.AutoConnectOnStartup);
     }
 
     [Fact]
@@ -956,12 +1028,20 @@ public sealed class MainWindowViewModelTests
     private sealed class FakeSettingsStore(StoredConnectionSettings settings) : IConnectionSettingsStore
     {
         private StoredConnectionSettings _settings = settings;
+        public ConnectionSettingsLoadResult? LoadResult { get; init; }
+        public ConnectionSettingsSaveResult NextSaveResult { get; set; } = ConnectionSettingsSaveResult.Saved();
 
-        public StoredConnectionSettings Load() => _settings;
+        public ConnectionSettingsLoadResult Load() => LoadResult ?? ConnectionSettingsLoadResult.Loaded(_settings);
 
-        public void Save(StoredConnectionSettings settings)
+        public ConnectionSettingsSaveResult Save(StoredConnectionSettings settings)
         {
-            _settings = settings;
+            var result = NextSaveResult;
+            if (result.Status != ConnectionSettingsSaveStatus.Failed)
+            {
+                _settings = settings;
+            }
+
+            return result;
         }
     }
 
@@ -975,6 +1055,7 @@ public sealed class MainWindowViewModelTests
         public event Action<QuasselChannelTopicUpdate>? ChannelTopicReceived;
         public event Action<QuasselMessage>? MessageReceived;
         public event Action<string>? StatusReceived;
+        public event Action<MessageCacheOperationResult>? MessageCacheOperationCompleted;
         public event Action<NetworkId>? NetworkRemoved;
 
         public List<(QuasselBufferInfo bufferInfo, int amount)> BacklogRequests { get; } = [];
@@ -995,11 +1076,12 @@ public sealed class MainWindowViewModelTests
             return Task.CompletedTask;
         }
 
-        public IReadOnlyList<QuasselMessage> GetCachedMessages(QuasselBufferInfo bufferInfo, int amount = 120)
+        public MessageCacheLoadResult GetCachedMessages(QuasselBufferInfo bufferInfo, int amount = 120)
         {
-            return CachedMessages.TryGetValue(bufferInfo.BufferId, out var messages)
-                ? messages.TakeLast(amount).ToArray()
-                : [];
+            var messages = CachedMessages.TryGetValue(bufferInfo.BufferId, out var cachedMessages)
+                ? cachedMessages.TakeLast(amount).ToArray()
+                : Array.Empty<QuasselMessage>();
+            return new MessageCacheLoadResult(messages, MessageCacheOperationStatus.Available);
         }
 
         public Task EnsureBacklogAsync(QuasselBufferInfo bufferInfo, int amount = 120, CancellationToken cancellationToken = default)
@@ -1019,6 +1101,7 @@ public sealed class MainWindowViewModelTests
         public void EmitConnectionState(QuasselConnectionState state, string? message) => ConnectionStateChanged?.Invoke(state, message);
         public void EmitSessionState(QuasselSessionState state) => SessionStateReceived?.Invoke(state);
         public void EmitStatus(string message) => StatusReceived?.Invoke(message);
+        public void EmitMessageCacheOperation(MessageCacheOperationResult result) => MessageCacheOperationCompleted?.Invoke(result);
         public void EmitNetworkState(QuasselNetworkState state) => NetworkStateReceived?.Invoke(state);
         public void EmitBufferInfo(QuasselBufferInfo bufferInfo) => BufferInfoUpdated?.Invoke(bufferInfo);
         public void EmitChannelState(QuasselChannelState state) => ChannelStateReceived?.Invoke(state);

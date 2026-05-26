@@ -28,9 +28,12 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             ThemeModeKey: "dark",
             MinimizeToTray: true);
 
-        store.Save(expected);
-        var actual = store.Load();
+        var saveResult = store.Save(expected);
+        var loadResult = store.Load();
+        var actual = loadResult.Settings;
 
+        Assert.NotEqual(ConnectionSettingsSaveStatus.Failed, saveResult.Status);
+        Assert.Equal(ConnectionSettingsLoadStatus.Loaded, loadResult.Status);
         Assert.Equal(expected.Host, actual.Host);
         Assert.Equal(expected.Port, actual.Port);
         Assert.Equal(expected.Username, actual.Username);
@@ -53,7 +56,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         var path = Path.Combine(_tempDirectory, "settings.json");
         var store = new LocalConnectionSettingsStore(path);
 
-        store.Save(new StoredConnectionSettings(
+        var saveResult = store.Save(new StoredConnectionSettings(
             Host: "server.example",
             Port: 4242,
             Username: "bruker",
@@ -68,8 +71,11 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             ThemeModeKey: "light",
             MinimizeToTray: false));
 
-        var actual = store.Load();
+        var loadResult = store.Load();
+        var actual = loadResult.Settings;
 
+        Assert.Equal(ConnectionSettingsSaveStatus.Saved, saveResult.Status);
+        Assert.Equal(ConnectionSettingsLoadStatus.Loaded, loadResult.Status);
         Assert.Equal("server.example", actual.Host);
         Assert.Equal(4242, actual.Port);
         Assert.True(actual.TrustInvalidCertificates);
@@ -83,6 +89,55 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.False(actual.MinimizeToTray);
         Assert.Equal(string.Empty, actual.Username);
         Assert.Equal(string.Empty, actual.Password);
+    }
+
+    [Fact]
+    public void Load_InvalidJson_ReturnsDefaultSettingsWithFailedStatus()
+    {
+        Directory.CreateDirectory(_tempDirectory);
+        var path = Path.Combine(_tempDirectory, "settings.json");
+        File.WriteAllText(path, "{not json");
+        var store = new LocalConnectionSettingsStore(path);
+
+        var result = store.Load();
+
+        Assert.Equal(ConnectionSettingsLoadStatus.Failed, result.Status);
+        Assert.Equal(new StoredConnectionSettings(), result.Settings);
+    }
+
+    [Fact]
+    public void Save_UnwritablePath_ReturnsFailedStatus()
+    {
+        Directory.CreateDirectory(_tempDirectory);
+        var blockerPath = Path.Combine(_tempDirectory, "blocker");
+        File.WriteAllText(blockerPath, "not a directory");
+        var path = Path.Combine(blockerPath, "settings.json");
+        var store = new LocalConnectionSettingsStore(path);
+
+        var result = store.Save(new StoredConnectionSettings(Host: "chat.example"));
+
+        Assert.Equal(ConnectionSettingsSaveStatus.Failed, result.Status);
+    }
+
+    [Fact]
+    public void Save_RememberedPasswordWithoutWindowsProtection_ReturnsDegradedCredentialStatus()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(_tempDirectory);
+        var path = Path.Combine(_tempDirectory, "settings.json");
+        var store = new LocalConnectionSettingsStore(path);
+
+        var result = store.Save(new StoredConnectionSettings(
+            Host: "chat.example",
+            Username: "alice",
+            Password: "secret",
+            RememberLogin: true));
+
+        Assert.Equal(ConnectionSettingsSaveStatus.SavedWithDegradedCredentialProtection, result.Status);
     }
 
     public void Dispose()

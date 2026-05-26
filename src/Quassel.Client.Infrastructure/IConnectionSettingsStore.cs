@@ -2,6 +2,6 @@ namespace Quassel.Client.Infrastructure;
 
 public interface IConnectionSettingsStore
 {
-    StoredConnectionSettings Load();
-    void Save(StoredConnectionSettings settings);
+    ConnectionSettingsLoadResult Load();
+    ConnectionSettingsSaveResult Save(StoredConnectionSettings settings);
 }

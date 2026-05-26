@@ -24,11 +24,11 @@ public sealed class LocalBufferMessageCacheStore
         _cacheRootPath = Path.Combine(localAppData, "QuasselGlow", "message-cache");
     }
 
-    public IReadOnlyList<QuasselMessage> LoadMessages(ConnectionProfile profile, QuasselBufferInfo bufferInfo, int maxMessages = 150)
+    public MessageCacheLoadResult LoadMessages(ConnectionProfile profile, QuasselBufferInfo bufferInfo, int maxMessages = 150)
     {
         if (!bufferInfo.BufferId.IsValid || maxMessages <= 0)
         {
-            return [];
+            return new MessageCacheLoadResult([], MessageCacheOperationStatus.Available);
         }
 
         try
@@ -36,46 +36,50 @@ public sealed class LocalBufferMessageCacheStore
             var persisted = LoadPersistedBuffer(profile, bufferInfo.BufferId);
             if (persisted.Messages.Count == 0)
             {
-                return [];
+                return new MessageCacheLoadResult([], MessageCacheOperationStatus.Available);
             }
 
-            return persisted.Messages
+            var messages = persisted.Messages
                 .OrderBy(message => message.MessageId)
                 .TakeLast(maxMessages)
                 .Select(message => message.ToDomain(bufferInfo))
                 .ToArray();
+
+            return new MessageCacheLoadResult(messages, MessageCacheOperationStatus.Available);
         }
-        catch
+        catch (Exception ex)
         {
-            return [];
+            return new MessageCacheLoadResult([], MessageCacheOperationStatus.Degraded, ex.Message);
         }
     }
 
-    public MsgId GetLatestMessageId(ConnectionProfile profile, BufferId bufferId)
+    public MessageCacheLatestMessageResult GetLatestMessageId(ConnectionProfile profile, BufferId bufferId)
     {
         if (!bufferId.IsValid)
         {
-            return new MsgId(-1);
+            return new MessageCacheLatestMessageResult(new MsgId(-1), MessageCacheOperationStatus.Available);
         }
 
         try
         {
             var persisted = LoadPersistedBuffer(profile, bufferId);
-            return persisted.Messages.Count == 0
+            var messageId = persisted.Messages.Count == 0
                 ? new MsgId(-1)
                 : new MsgId(persisted.Messages.Max(message => message.MessageId));
+
+            return new MessageCacheLatestMessageResult(messageId, MessageCacheOperationStatus.Available);
         }
-        catch
+        catch (Exception ex)
         {
-            return new MsgId(-1);
+            return new MessageCacheLatestMessageResult(new MsgId(-1), MessageCacheOperationStatus.Degraded, ex.Message);
         }
     }
 
-    public void StoreMessages(ConnectionProfile profile, QuasselBufferInfo bufferInfo, IReadOnlyList<QuasselMessage> messages, int maxMessages = DefaultMessageLimit)
+    public MessageCacheOperationResult StoreMessages(ConnectionProfile profile, QuasselBufferInfo bufferInfo, IReadOnlyList<QuasselMessage> messages, int maxMessages = DefaultMessageLimit)
     {
         if (!bufferInfo.BufferId.IsValid || messages.Count == 0)
         {
-            return;
+            return MessageCacheOperationResult.Available();
         }
 
         try
@@ -84,17 +88,19 @@ public sealed class LocalBufferMessageCacheStore
             MergeMessages(persisted.Messages, messages);
             TrimMessages(persisted.Messages, maxMessages);
             SavePersistedBuffer(profile, bufferInfo.BufferId, persisted);
+            return MessageCacheOperationResult.Available();
         }
-        catch
+        catch (Exception ex)
         {
+            return MessageCacheOperationResult.Degraded(ex.Message);
         }
     }
 
-    public void AppendMessage(ConnectionProfile profile, QuasselMessage message, int maxMessages = DefaultMessageLimit)
+    public MessageCacheOperationResult AppendMessage(ConnectionProfile profile, QuasselMessage message, int maxMessages = DefaultMessageLimit)
     {
         if (!message.BufferInfo.BufferId.IsValid || !message.MessageId.IsValid)
         {
-            return;
+            return MessageCacheOperationResult.Available();
         }
 
         try
@@ -103,17 +109,19 @@ public sealed class LocalBufferMessageCacheStore
             MergeMessages(persisted.Messages, [message]);
             TrimMessages(persisted.Messages, maxMessages);
             SavePersistedBuffer(profile, message.BufferInfo.BufferId, persisted);
+            return MessageCacheOperationResult.Available();
         }
-        catch
+        catch (Exception ex)
         {
+            return MessageCacheOperationResult.Degraded(ex.Message);
         }
     }
 
-    public void RemoveBuffer(ConnectionProfile profile, BufferId bufferId)
+    public MessageCacheOperationResult RemoveBuffer(ConnectionProfile profile, BufferId bufferId)
     {
         if (!bufferId.IsValid)
         {
-            return;
+            return MessageCacheOperationResult.Available();
         }
 
         try
@@ -123,9 +131,11 @@ public sealed class LocalBufferMessageCacheStore
             {
                 File.Delete(filePath);
             }
+            return MessageCacheOperationResult.Available();
         }
-        catch
+        catch (Exception ex)
         {
+            return MessageCacheOperationResult.Degraded(ex.Message);
         }
     }
 

@@ -21,6 +21,7 @@ public sealed class QuasselSessionService : IQuasselSessionService
     public event Action<QuasselChannelTopicUpdate>? ChannelTopicReceived;
     public event Action<QuasselMessage>? MessageReceived;
     public event Action<string>? StatusReceived;
+    public event Action<MessageCacheOperationResult>? MessageCacheOperationCompleted;
     public event Action<NetworkId>? NetworkRemoved;
 
     public QuasselSessionService()
@@ -57,18 +58,23 @@ public sealed class QuasselSessionService : IQuasselSessionService
         return _client.SendInputAsync(bufferInfo, text, cancellationToken);
     }
 
-    public IReadOnlyList<QuasselMessage> GetCachedMessages(QuasselBufferInfo bufferInfo, int amount = 120)
+    public MessageCacheLoadResult GetCachedMessages(QuasselBufferInfo bufferInfo, int amount = 120)
     {
-        return _currentProfile is null
-            ? []
-            : _messageCacheStore.LoadMessages(_currentProfile, bufferInfo, amount);
+        if (_currentProfile is null)
+        {
+            return new MessageCacheLoadResult([], MessageCacheOperationStatus.Available);
+        }
+
+        var result = _messageCacheStore.LoadMessages(_currentProfile, bufferInfo, amount);
+        MessageCacheOperationCompleted?.Invoke(result.ToOperationResult());
+        return result;
     }
 
     public Task DeleteBufferAsync(QuasselBufferInfo bufferInfo, CancellationToken cancellationToken = default)
     {
         if (_currentProfile is not null)
         {
-            _messageCacheStore.RemoveBuffer(_currentProfile, bufferInfo.BufferId);
+            MessageCacheOperationCompleted?.Invoke(_messageCacheStore.RemoveBuffer(_currentProfile, bufferInfo.BufferId));
         }
 
         return _client.DeleteBufferAsync(bufferInfo.BufferId, cancellationToken);
@@ -125,7 +131,7 @@ public sealed class QuasselSessionService : IQuasselSessionService
     {
         if (_currentProfile is not null && !message.IsBacklog)
         {
-            _messageCacheStore.AppendMessage(_currentProfile, message, CachedMessageLimit);
+            MessageCacheOperationCompleted?.Invoke(_messageCacheStore.AppendMessage(_currentProfile, message, CachedMessageLimit));
         }
 
         MessageReceived?.Invoke(message);
@@ -145,7 +151,7 @@ public sealed class QuasselSessionService : IQuasselSessionService
             return;
         }
 
-        _messageCacheStore.StoreMessages(_currentProfile, messages[0].BufferInfo, messages, CachedMessageLimit);
+        MessageCacheOperationCompleted?.Invoke(_messageCacheStore.StoreMessages(_currentProfile, messages[0].BufferInfo, messages, CachedMessageLimit));
     }
 
     private Task RequestChannelStateIfNeededAsync(QuasselBufferInfo bufferInfo)

@@ -1,66 +1,43 @@
 # Next Release Scope
 
-This document proposes the target and scope for the release after `v0.1.0`.
+This document proposes the next focused reliability slice after `v0.2.9`.
 
 ## Target
 
-- Proposed version: `v0.2.0`
-- Release theme: stabilize the MVP and make the desktop client feel safer to use as a daily Quassel companion
+- Proposed version: `v0.2.10`
+- Release theme: daily-driver reliability for local user state and discreet visible failures
 
 ## Why This Scope
 
-The current `v0.1.0` release already covers core connection, backlog loading, message sending, settings persistence, and broad language support. The next release should improve reliability and polish before the project takes on larger feature areas such as full sync coverage or richer user-list functionality.
+QuasselGlow already covers core connection, backlog loading, message sending, theme selection, tray support, local message cache, and broad localization. The next release should make the desktop client more trustworthy when local state cannot be loaded, saved, protected, or refreshed.
 
 ## Must Ship
 
-- Connection and session polish
-  Make connect, disconnect, sync, and error states more predictable and easier to understand in the UI.
-- Buffer and message usability
-  Improve unread and highlight behavior, message presentation, and buffer-state clarity so the app is easier to scan during active chat use.
-- Release-facing naming cleanup
-  Keep the desktop project, published app binary, and release artifacts aligned on the `QuasselGlow` name instead of the older `Quassel.Client.Desktop` identity.
-- Release engineering
-  Make versioning and packaging more repeatable so the release can be rebuilt confidently for `win-x64`, `linux-x64`, `osx-x64`, and `osx-arm64`.
+- Connection preferences health
+  Report load and save failures through explicit Infrastructure result types, while still allowing the desktop client to keep running with safe defaults or current in-memory state.
+- Credential protection health
+  Treat remembered-login saves without operating-system credential protection as degraded credential protection, visible after save and recovered after a successful save without a remembered secret or with protected storage.
+- Message cache health
+  Report local message-cache read and write failures as a global degraded cache condition, without blocking chat use or treating the failure as Quassel core backlog failure.
+- Status-area visibility
+  Show the highest-priority active local user state failure in the existing status area: connection preferences first, credential protection second, message cache third.
+- Automatic recovery
+  Clear each visible failure automatically after a later successful operation proves that same local user state boundary is healthy again.
 - Regression coverage
-  Add automated tests in the areas most likely to break visible behavior, especially settings persistence, protocol handling, and desktop/session state logic.
-
-## Good Candidates
-
-- Tighten connection-state text and failure handling during login and sync
-- Review backlog loading behavior when switching buffers and reconnecting
-- Improve buffer ordering, unread counters, and highlight visibility
-- Add desktop-layer tests around `MainWindowViewModel` state transitions
-- Centralize app version metadata instead of relying on ad hoc release bookkeeping
-- Document or script the packaging flow used to create release archives
-
-## Nice to Have
-
-- Theme switching and dark mode
-  Add a persisted appearance setting, ship multiple color themes, include a dark mode variant, and verify the main shell remains readable in both light and dark presentation.
-- Private-message and mention alerts
-  Detect direct messages and nickname mentions, surface them clearly in the buffer list and selected-buffer state, and make them available to any desktop or tray notification flow.
-- Tray icon and minimize-to-tray
-  Add a tray icon, let the app minimize to tray intentionally, and provide a clear restore and quit path from the tray menu or icon interaction.
-- Emoji support
-  Ensure emoji render correctly in message history and the composer, and confirm that the chosen fonts or fallbacks cover common emoji usage well enough for everyday chat.
+  Add tests for settings load/save failures, degraded credential protection, message-cache failures, priority ordering, and recovery.
 
 ## Explicitly Deferred
 
-- Full Quassel sync surface coverage
-- Rich user list and presence management
-- Native installers, code signing, and notarization
-- Auto-update support
-- Large protocol-expansion work that would broaden the release too much
+- New toast, modal, or notification surfaces for local state failures
+- Per-buffer message-cache warnings
+- Full operating-system keychain integration for macOS and Linux
+- Persistent composer drafts and input history
+- Broader Quassel protocol sync expansion
 
 ## Exit Criteria
 
-- The release branch has a clear, fixed scope with no open "maybe" items
 - `dotnet build Quassel.slnx -c Release` succeeds
 - Application and protocol tests pass
-- The desktop client is smoke-tested against a real Quassel core
-- Release notes are prepared before tagging
-- Release artifacts are produced for the current four target runtimes
-
-## Working Rule
-
-If a proposed change does not clearly improve stability, chat usability, or release repeatability for `v0.2.0`, it should probably wait for the release after this one.
+- Local state failures remain discreet but visible in the existing status area
+- Chat use continues when settings or cache persistence is degraded
+- Release notes describe the local-state reliability behavior and known credential-protection limitations

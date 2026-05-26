@@ -30,12 +30,12 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
         _legacySettingsPath = Path.Combine(localAppData, "QuasselNeon", "settings.json");
     }
 
-    public StoredConnectionSettings Load()
+    public ConnectionSettingsLoadResult Load()
     {
         var sourcePath = ResolveExistingSettingsPath();
         if (sourcePath is null)
         {
-            return new StoredConnectionSettings();
+            return ConnectionSettingsLoadResult.Missing();
         }
 
         try
@@ -57,7 +57,7 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 }
             }
 
-            return new StoredConnectionSettings(
+            var settings = new StoredConnectionSettings(
                 string.IsNullOrWhiteSpace(persisted.Host) ? string.Empty : persisted.Host.Trim(),
                 persisted.Port > 0 ? persisted.Port : 60096,
                 persisted.RememberLogin ? persisted.Username ?? string.Empty : string.Empty,
@@ -71,14 +71,16 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 string.IsNullOrWhiteSpace(persisted.ThemeKey) ? string.Empty : persisted.ThemeKey.Trim(),
                 string.IsNullOrWhiteSpace(persisted.ThemeModeKey) ? string.Empty : persisted.ThemeModeKey.Trim(),
                 persisted.MinimizeToTray);
+
+            return ConnectionSettingsLoadResult.Loaded(settings);
         }
-        catch
+        catch (Exception ex)
         {
-            return new StoredConnectionSettings();
+            return ConnectionSettingsLoadResult.Failed(ex.Message);
         }
     }
 
-    public void Save(StoredConnectionSettings settings)
+    public ConnectionSettingsSaveResult Save(StoredConnectionSettings settings)
     {
         try
         {
@@ -88,14 +90,16 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 Directory.CreateDirectory(directory);
             }
 
+            var protectionResult = settings.RememberLogin && !string.IsNullOrEmpty(settings.Password)
+                ? Protect(settings.Password)
+                : ProtectedSecret.Empty;
+
             var persisted = new PersistedConnectionSettings
             {
                 Host = string.IsNullOrWhiteSpace(settings.Host) ? string.Empty : settings.Host.Trim(),
                 Port = settings.Port > 0 ? settings.Port : 60096,
                 Username = settings.RememberLogin ? settings.Username.Trim() : string.Empty,
-                Password = settings.RememberLogin && !string.IsNullOrEmpty(settings.Password)
-                    ? Protect(settings.Password)
-                    : string.Empty,
+                Password = protectionResult.Value,
                 TrustInvalidCertificates = settings.TrustInvalidCertificates,
                 RememberLogin = settings.RememberLogin,
                 AutoConnectOnStartup = settings.RememberLogin && settings.AutoConnectOnStartup,
@@ -109,9 +113,14 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
 
             var json = JsonSerializer.Serialize(persisted, SerializerOptions);
             File.WriteAllText(_settingsPath, json);
+
+            return protectionResult.IsDegraded
+                ? ConnectionSettingsSaveResult.SavedWithDegradedCredentialProtection()
+                : ConnectionSettingsSaveResult.Saved();
         }
-        catch
+        catch (Exception ex)
         {
+            return ConnectionSettingsSaveResult.Failed(ex.Message);
         }
     }
 
@@ -130,11 +139,11 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
         return null;
     }
 
-    private static string Protect(string value)
+    private static ProtectedSecret Protect(string value)
     {
         if (string.IsNullOrEmpty(value))
         {
-            return string.Empty;
+            return ProtectedSecret.Empty;
         }
 
         var plainBytes = Encoding.UTF8.GetBytes(value);
@@ -144,14 +153,14 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
             if (OperatingSystem.IsWindows())
             {
                 var protectedBytes = ProtectedData.Protect(plainBytes, CurrentOptionalEntropy, DataProtectionScope.CurrentUser);
-                return ProtectedPrefix + Convert.ToBase64String(protectedBytes);
+                return new ProtectedSecret(ProtectedPrefix + Convert.ToBase64String(protectedBytes), IsDegraded: false);
             }
         }
         catch
         {
         }
 
-        return PlainPrefix + Convert.ToBase64String(plainBytes);
+        return new ProtectedSecret(PlainPrefix + Convert.ToBase64String(plainBytes), IsDegraded: true);
     }
 
     private static string Unprotect(string value)
@@ -210,5 +219,10 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
         public string ThemeKey { get; init; } = string.Empty;
         public string ThemeModeKey { get; init; } = string.Empty;
         public bool MinimizeToTray { get; init; }
+    }
+
+    private sealed record ProtectedSecret(string Value, bool IsDegraded)
+    {
+        public static ProtectedSecret Empty { get; } = new(string.Empty, IsDegraded: false);
     }
 }
