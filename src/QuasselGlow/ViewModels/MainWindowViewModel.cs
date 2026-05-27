@@ -378,6 +378,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public bool UseOverlayDismissForUserList => IsCompactLayout;
 
+    public bool ShowUserListToggle => !IsControlPanelOpen;
+
     public void SetCompactLayout(bool isCompact)
     {
         if (SetProperty(ref _isCompactLayout, isCompact))
@@ -956,6 +958,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     partial void OnIsControlPanelOpenChanged(bool value)
     {
+        OnPropertyChanged(nameof(ShowUserListToggle));
         SaveSettingsIfReady();
     }
 

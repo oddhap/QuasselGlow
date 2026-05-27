@@ -1200,7 +1200,8 @@
                                     <Button Grid.Column="1"
                                             Classes="infoToggle"
                                             Command="{Binding ToggleControlPanelCommand}"
-                                            Content="{Binding Strings[Users]}" />
+                                            Content="{Binding Strings[Users]}"
+                                            IsVisible="{Binding ShowUserListToggle}" />
                                 </Grid>
                             </Border>
 

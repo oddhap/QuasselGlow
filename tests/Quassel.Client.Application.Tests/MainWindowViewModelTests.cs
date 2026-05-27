@@ -632,6 +632,24 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void UserListToggle_IsHiddenWhileUserListIsOpen()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+
+        Assert.True(viewModel.ShowUserListToggle);
+
+        viewModel.ToggleControlPanelCommand.Execute(null);
+
+        Assert.False(viewModel.ShowUserListToggle);
+
+        viewModel.ToggleControlPanelCommand.Execute(null);
+
+        Assert.True(viewModel.ShowUserListToggle);
+    }
+
+    [Fact]
     public void ChannelStateReceived_PopulatesSortedChannelUsers()
     {
         var session = new FakeSessionService();
