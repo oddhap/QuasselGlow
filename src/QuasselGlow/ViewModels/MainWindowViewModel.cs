@@ -676,18 +676,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             tokenStart--;
         }
 
-        if (text[..tokenStart].Any(static character => !char.IsWhiteSpace(character)))
-        {
-            return false;
-        }
-
         var tokenEnd = caretIndex;
         while (tokenEnd < text.Length && !char.IsWhiteSpace(text[tokenEnd]))
         {
             tokenEnd++;
         }
 
-        var typedNick = text[tokenStart..caretIndex].Trim().TrimEnd(':');
+        var typedNick = text[tokenStart..tokenEnd].Trim().TrimEnd(':');
         if (string.IsNullOrWhiteSpace(typedNick))
         {
             return false;
@@ -705,19 +700,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             return false;
         }
 
+        var isComposerAddressing = !text[..tokenStart].Any(static character => !char.IsWhiteSpace(character));
+        var leadingText = text[..tokenStart];
         var suffix = text[tokenEnd..];
-        if (suffix.Length > 0 && char.IsWhiteSpace(suffix[0]))
+        var mode = isComposerAddressing ? NickAutocompleteMode.ComposerAddressing : NickAutocompleteMode.InlineCompletion;
+
+        if (isComposerAddressing && suffix.Length > 0 && char.IsWhiteSpace(suffix[0]))
         {
             suffix = suffix.TrimStart();
         }
 
         _nickAutocompleteState = new NickAutocompleteState(
             SelectedBuffer.BufferInfo.BufferId,
-            text[..tokenStart],
-            typedNick,
+            leadingText,
             suffix,
             matches,
-            0);
+            0,
+            mode);
 
         ApplyNickAutocompleteMatch(_nickAutocompleteState, 0, out newCaretIndex);
         return true;
@@ -1837,11 +1836,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         var expectedText = BuildNickAutocompleteText(
             _nickAutocompleteState.LeadingText,
             _nickAutocompleteState.Matches[_nickAutocompleteState.MatchIndex],
-            _nickAutocompleteState.Suffix);
+            _nickAutocompleteState.Suffix,
+            _nickAutocompleteState.Mode);
 
         var expectedCaretIndex = _nickAutocompleteState.LeadingText.Length
             + _nickAutocompleteState.Matches[_nickAutocompleteState.MatchIndex].Length
-            + 2;
+            + GetNickAutocompleteCaretOffset(_nickAutocompleteState.Mode);
 
         if (!string.Equals(text, expectedText, StringComparison.Ordinal)
             || caretIndex != expectedCaretIndex)
@@ -1865,19 +1865,33 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             DraftMessage = BuildNickAutocompleteText(
                 state.LeadingText,
                 state.Matches[matchIndex],
-                state.Suffix);
+                state.Suffix,
+                state.Mode);
         }
         finally
         {
             _isApplyingNickAutocomplete = false;
         }
 
-        newCaretIndex = state.LeadingText.Length + state.Matches[matchIndex].Length + 2;
+        newCaretIndex = state.LeadingText.Length
+            + state.Matches[matchIndex].Length
+            + GetNickAutocompleteCaretOffset(state.Mode);
     }
 
-    private static string BuildNickAutocompleteText(string leadingText, string nick, string suffix)
+    private static string BuildNickAutocompleteText(
+        string leadingText,
+        string nick,
+        string suffix,
+        NickAutocompleteMode mode)
     {
-        return string.Concat(leadingText, nick, ": ", suffix);
+        return mode == NickAutocompleteMode.ComposerAddressing
+            ? string.Concat(leadingText, nick, ": ", suffix)
+            : string.Concat(leadingText, nick, suffix);
+    }
+
+    private static int GetNickAutocompleteCaretOffset(NickAutocompleteMode mode)
+    {
+        return mode == NickAutocompleteMode.ComposerAddressing ? 2 : 0;
     }
 
     private void ResetNickAutocomplete()
@@ -2114,6 +2128,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         MessageCache
     }
 
+    private enum NickAutocompleteMode
+    {
+        ComposerAddressing,
+        InlineCompletion
+    }
+
     private sealed class ComposerHistoryState
     {
         public List<string> Entries { get; } = [];
@@ -2125,16 +2145,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private sealed class NickAutocompleteState(
         BufferId bufferId,
         string leadingText,
-        string prefix,
         string suffix,
         string[] matches,
-        int matchIndex)
+        int matchIndex,
+        NickAutocompleteMode mode)
     {
         public BufferId BufferId { get; } = bufferId;
         public string LeadingText { get; } = leadingText;
-        public string Prefix { get; } = prefix;
         public string Suffix { get; } = suffix;
         public string[] Matches { get; } = matches;
         public int MatchIndex { get; set; } = matchIndex;
+        public NickAutocompleteMode Mode { get; } = mode;
     }
 }

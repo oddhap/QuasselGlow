@@ -60,6 +60,14 @@ _Avoid_: error list, warning queue
 A previously degraded local user state boundary that has been proven healthy by a later successful load, save, protection, or cache operation.
 _Avoid_: dismissed error, acknowledged warning
 
+**Composer addressing**:
+Starting a channel message by naming a channel user directly so the message is visibly addressed to that nick.
+_Avoid_: first-word autocomplete, mention prefix
+
+**Inline nick completion**:
+Completing the message token that the caret is inside to a channel user's nick inside an already-started message without turning the message into direct address.
+_Avoid_: mid-message addressing, inline mention
+
 ## Example Dialogue
 
 Dev: Should the next release focus on more Quassel features or daily-driver reliability?
@@ -105,3 +113,11 @@ Domain expert: No. Treat degraded message cache as a global desktop client condi
 Dev: When is degraded message cache recovered?
 
 Domain expert: After the next successful message cache read or write.
+
+Dev: Should nick completion always produce an addressed message?
+
+Domain expert: No. Composer addressing happens only at the start of the message. Inline nick completion should insert the nick without making the whole message look addressed to that user.
+
+Dev: Should inline nick completion clean up the surrounding message text?
+
+Domain expert: No. It should replace only the current token and preserve the surrounding text exactly.
