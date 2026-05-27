@@ -69,12 +69,14 @@ public partial class MainWindow : Window
         UpdateWindowChrome(WindowState);
         UpdateResponsiveLayout();
         _viewModel?.SetForegroundState(true);
+        _viewModel?.RefreshAppearance();
         QueueFocusComposer();
     }
 
     private void OnActivated(object? sender, EventArgs e)
     {
         _viewModel?.SetForegroundState(true);
+        _viewModel?.RefreshAppearance();
         QueueFocusComposer();
     }
 

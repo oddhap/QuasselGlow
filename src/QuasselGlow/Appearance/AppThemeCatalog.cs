@@ -7,10 +7,12 @@ public static class AppThemeCatalog
 {
     public const string DefaultThemeKey = "glow";
     public const string DefaultModeKey = "light";
+    public const string DynamicWallpaperThemeKey = "dynamicWallpaper";
 
     public static IReadOnlyList<string> ThemeKeys { get; } =
     [
         "glow",
+        DynamicWallpaperThemeKey,
         "macos",
         "windows7",
         "windows10",
@@ -89,9 +91,18 @@ public static class AppThemeCatalog
 
     public static string NormalizeThemeKey(string? themeKey)
     {
-        if (!string.IsNullOrWhiteSpace(themeKey) && LightPalettes.ContainsKey(themeKey.Trim()))
+        if (!string.IsNullOrWhiteSpace(themeKey))
         {
-            return themeKey.Trim();
+            var trimmed = themeKey.Trim();
+            if (string.Equals(trimmed, DynamicWallpaperThemeKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return DynamicWallpaperThemeKey;
+            }
+
+            if (LightPalettes.ContainsKey(trimmed))
+            {
+                return trimmed;
+            }
         }
 
         return DefaultThemeKey;
@@ -122,10 +133,23 @@ public static class AppThemeCatalog
         return string.Equals(NormalizeModeKey(modeKey), "dark", StringComparison.OrdinalIgnoreCase);
     }
 
-    public static AppThemePalette ResolvePalette(string? themeKey, string? modeKey)
+    public static bool IsWallpaperMatchedTheme(string? themeKey)
+    {
+        return string.Equals(NormalizeThemeKey(themeKey), DynamicWallpaperThemeKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static AppThemePalette ResolvePalette(string? themeKey, string? modeKey, WallpaperThemeColors? wallpaperColors = null)
     {
         var theme = NormalizeThemeKey(themeKey);
         var palettes = IsDarkMode(modeKey) ? DarkPalettes : LightPalettes;
+
+        if (string.Equals(theme, DynamicWallpaperThemeKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return wallpaperColors is null
+                ? palettes[DefaultThemeKey]
+                : CreateWallpaperPalette(IsDarkMode(modeKey), wallpaperColors);
+        }
+
         return palettes.TryGetValue(theme, out var palette)
             ? palette
             : palettes[DefaultThemeKey];
@@ -956,6 +980,57 @@ public static class AppThemeCatalog
                 backdropEnd: "#FBF1DE");
     }
 
+    private static AppThemePalette CreateWallpaperPalette(bool isDark, WallpaperThemeColors colors)
+    {
+        var primaryAccent = PrepareWallpaperAccent(colors.Primary, isDark);
+        var secondaryAccent = PrepareWallpaperAccent(colors.Secondary, isDark);
+
+        return isDark
+            ? CreateDerivedPalette(
+                true,
+                Blend(C("#111820"), primaryAccent, 0.10),
+                Blend(C("#18212B"), primaryAccent, 0.12),
+                Blend(C("#131A22"), secondaryAccent, 0.10),
+                Blend(C("#2A3643"), primaryAccent, 0.22),
+                C("#F4F7FB"),
+                Blend(C("#AAB8C6"), primaryAccent, 0.12),
+                secondaryAccent,
+                primaryAccent,
+                Blend(C("#213142"), primaryAccent, 0.34),
+                Blend(C("#3C3023"), secondaryAccent, 0.24),
+                Blend(C("#10141A"), primaryAccent, 0.08),
+                Blend(C("#16202C"), primaryAccent, 0.22),
+                Blend(C("#261A18"), secondaryAccent, 0.18))
+            : CreateDerivedPalette(
+                false,
+                Blend(C("#FFFDF9"), primaryAccent, 0.055),
+                Blend(C("#FFFFFF"), primaryAccent, 0.025),
+                Blend(C("#F3F0E8"), primaryAccent, 0.095),
+                Blend(C("#D9D6CF"), primaryAccent, 0.18),
+                C("#1F2937"),
+                Blend(C("#526072"), primaryAccent, 0.10),
+                secondaryAccent,
+                primaryAccent,
+                Blend(C("#DDE9F4"), primaryAccent, 0.28),
+                Blend(C("#F9E8D1"), secondaryAccent, 0.24),
+                Blend(C("#FFFDF9"), primaryAccent, 0.055),
+                Blend(C("#F8FBFF"), primaryAccent, 0.16),
+                Blend(C("#FFF1E6"), secondaryAccent, 0.16));
+    }
+
+    private static Color PrepareWallpaperAccent(Color color, bool isDark)
+    {
+        var luminance = GetRelativeLuminance(color);
+        if (isDark)
+        {
+            var lifted = luminance < 0.45 ? Blend(color, Colors.White, 0.32) : color;
+            return GetRelativeLuminance(lifted) > 0.82 ? Blend(lifted, Colors.Black, 0.16) : lifted;
+        }
+
+        var lowered = luminance > 0.62 ? Blend(color, Colors.Black, 0.34) : color;
+        return GetRelativeLuminance(lowered) < 0.24 ? Blend(lowered, Colors.White, 0.18) : lowered;
+    }
+
     private static AppThemePalette CreateDerivedPalette(
         bool isDark,
         string shellBg,
@@ -986,6 +1061,39 @@ public static class AppThemeCatalog
         var backdropMidColor = C(backdropMid);
         var backdropEndColor = C(backdropEnd);
 
+        return CreateDerivedPalette(
+            isDark,
+            shellBgColor,
+            shellPanelColor,
+            shellPanelMutedColor,
+            shellBorderColor,
+            inkStrongColor,
+            inkSoftColor,
+            accentRustColor,
+            accentTealColor,
+            accentSkyColor,
+            accentSandColor,
+            backdropStartColor,
+            backdropMidColor,
+            backdropEndColor);
+    }
+
+    private static AppThemePalette CreateDerivedPalette(
+        bool isDark,
+        Color shellBgColor,
+        Color shellPanelColor,
+        Color shellPanelMutedColor,
+        Color shellBorderColor,
+        Color inkStrongColor,
+        Color inkSoftColor,
+        Color accentRustColor,
+        Color accentTealColor,
+        Color accentSkyColor,
+        Color accentSandColor,
+        Color backdropStartColor,
+        Color backdropMidColor,
+        Color backdropEndColor)
+    {
         return new AppThemePalette(
             ShellBg: shellBgColor,
             ShellPanel: shellPanelColor,
@@ -1044,6 +1152,17 @@ public static class AppThemeCatalog
     private static Color WithAlpha(Color color, byte alpha)
     {
         return Color.FromArgb(alpha, color.R, color.G, color.B);
+    }
+
+    private static double GetRelativeLuminance(Color color)
+    {
+        static double Convert(byte channel)
+        {
+            var value = channel / 255d;
+            return value <= 0.03928 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+        }
+
+        return (0.2126 * Convert(color.R)) + (0.7152 * Convert(color.G)) + (0.0722 * Convert(color.B));
     }
 
     private static string ToPascalCase(string value)

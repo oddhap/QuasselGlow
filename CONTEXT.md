@@ -68,6 +68,10 @@ _Avoid_: first-word autocomplete, mention prefix
 Completing the message token that the caret is inside to a channel user's nick inside an already-started message without turning the message into direct address.
 _Avoid_: mid-message addressing, inline mention
 
+**Wallpaper-matched appearance**:
+An appearance choice where the desktop client reflects the user's desktop background colors while preserving readable chat surfaces and falling back gracefully when those colors are unavailable.
+_Avoid_: dynamic theme, wallpaper sync, system accent theme
+
 ## Example Dialogue
 
 Dev: Should the next release focus on more Quassel features or daily-driver reliability?
@@ -121,3 +125,23 @@ Domain expert: No. Composer addressing happens only at the start of the message.
 Dev: Should inline nick completion clean up the surrounding message text?
 
 Domain expert: No. It should replace only the current token and preserve the surrounding text exactly.
+
+Dev: Should wallpaper-matched appearance depend on the desktop background being readable by the app?
+
+Domain expert: No. It should use desktop background colors when available, but fall back gracefully so chat remains readable.
+
+Dev: Should wallpaper-matched appearance only exist on platforms where wallpaper colors can be read?
+
+Domain expert: No. It should remain a cross-platform appearance choice, with platform-specific color discovery improving it where available.
+
+Dev: Should wallpaper-matched appearance let desktop background colors control the whole chat surface?
+
+Domain expert: No. It should use desktop background colors for mood, accents, and backdrop treatment while keeping chat text and message surfaces conservatively readable.
+
+Dev: Does wallpaper-matched appearance decide whether the desktop client is light or dark?
+
+Domain expert: No. The user's light or dark appearance choice remains separate, and wallpaper colors adapt to that choice.
+
+Dev: When multiple desktop backgrounds are available, which one should wallpaper-matched appearance reflect?
+
+Domain expert: The main screen or current desktop background should drive the appearance first. Combining backgrounds or following the window between screens can wait until there is a clear user need.

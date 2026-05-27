@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Media;
 using QuasselGlow.ViewModels;
 using QuasselGlow.Appearance;
 using Quassel.Client.Domain;
@@ -445,6 +446,7 @@ public sealed class MainWindowViewModelTests
             ("windows7", "Windows 7"),
             ("windows10", "Windows 10"),
             ("windows11", "Windows 11"),
+            ("dynamicWallpaper", "Dynamic Wallpaper"),
             ("ubuntu", "Ubuntu"),
             ("cobalt", "Cobalt"),
             ("slate", "Slate"),
@@ -468,6 +470,39 @@ public sealed class MainWindowViewModelTests
             viewModel.SelectedThemeKey = key;
             Assert.Equal(displayName, viewModel.SelectedTheme?.DisplayName);
         }
+    }
+
+    [Fact]
+    public void DynamicWallpaperTheme_UsesProvidedWallpaperColors()
+    {
+        var wallpaperColors = new WallpaperThemeColors(Color.Parse("#0E8C86"), Color.Parse("#B95F2D"));
+
+        var dynamicPalette = AppThemeCatalog.ResolvePalette(
+            AppThemeCatalog.DynamicWallpaperThemeKey,
+            "light",
+            wallpaperColors);
+        var fallbackPalette = AppThemeCatalog.ResolvePalette(
+            AppThemeCatalog.DynamicWallpaperThemeKey,
+            "light");
+        var glowPalette = AppThemeCatalog.ResolvePalette("glow", "light");
+
+        Assert.NotEqual(glowPalette.AccentTeal, dynamicPalette.AccentTeal);
+        Assert.NotEqual(glowPalette.AccentRust, dynamicPalette.AccentRust);
+        Assert.Equal(glowPalette.AccentTeal, fallbackPalette.AccentTeal);
+    }
+
+    [Fact]
+    public void WallpaperPaletteProvider_SelectsDominantReadableColors()
+    {
+        var colors = Enumerable.Repeat(Color.Parse("#147D78"), 40)
+            .Concat(Enumerable.Repeat(Color.Parse("#A85B2A"), 24))
+            .Concat(Enumerable.Repeat(Color.Parse("#F8F8F8"), 80));
+
+        var selected = WallpaperPaletteProvider.SelectThemeColors(colors);
+
+        Assert.NotNull(selected);
+        Assert.True(selected.Primary.G > selected.Primary.R);
+        Assert.True(selected.Secondary.R > selected.Secondary.B);
     }
 
     [Fact]

@@ -12,6 +12,8 @@ namespace QuasselGlow;
 
 public partial class App : Avalonia.Application
 {
+    private readonly WallpaperPaletteProvider _wallpaperPaletteProvider = new();
+
     public static App? CurrentApp => Application.Current as App;
 
     public override void Initialize()
@@ -36,7 +38,10 @@ public partial class App : Avalonia.Application
 
     public void ApplyAppearance(string? themeKey, string? modeKey)
     {
-        var palette = AppThemeCatalog.ResolvePalette(themeKey, modeKey);
+        var wallpaperColors = AppThemeCatalog.IsWallpaperMatchedTheme(themeKey)
+            ? _wallpaperPaletteProvider.TryGetThemeColors()
+            : null;
+        var palette = AppThemeCatalog.ResolvePalette(themeKey, modeKey, wallpaperColors);
         RequestedThemeVariant = AppThemeCatalog.IsDarkMode(modeKey) ? ThemeVariant.Dark : ThemeVariant.Light;
 
         UpdateBrush("ShellBg", palette.ShellBg);

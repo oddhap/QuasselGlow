@@ -1821,6 +1821,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         App.CurrentApp?.ApplyAppearance(SelectedThemeKey, SelectedThemeModeKey);
     }
 
+    public void RefreshAppearance()
+    {
+        ApplyAppearance();
+    }
+
     private bool TryContinueNickAutocomplete(string text, int caretIndex, out int newCaretIndex)
     {
         newCaretIndex = caretIndex;
