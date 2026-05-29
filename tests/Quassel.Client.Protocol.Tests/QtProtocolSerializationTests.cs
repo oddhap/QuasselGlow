@@ -55,4 +55,60 @@ public class QtProtocolSerializationTests
         Assert.Equal(new MsgId(messageId), QtValueHelpers.AsMsgId(reader.ReadVariant()));
         Assert.Equal(0, reader.Remaining);
     }
+
+    [Fact]
+    public void PackedMessage_CanCarryUtcDateTimeForHeartbeat()
+    {
+        var timestamp = DateTimeOffset.Parse("2026-05-29T11:30:00+02:00");
+
+        var payload = QtPayloadBuilder.BuildPackedMessage(5, false, timestamp);
+        var reader = new QtBinaryReader(payload, false);
+
+        Assert.Equal<uint>(2, reader.ReadUInt32());
+        Assert.Equal(5, QtValueHelpers.AsInt(reader.ReadVariant()));
+        Assert.Equal(timestamp.ToUniversalTime(), Assert.IsType<DateTimeOffset>(reader.ReadVariant()));
+        Assert.Equal(0, reader.Remaining);
+    }
+
+    [Fact]
+    public async Task HeartBeatReply_ResetsMissedHeartBeats()
+    {
+        var client = new QuasselCoreClient(TimeSpan.FromMilliseconds(5), maxMissedHeartBeats: 1);
+        var missedField = typeof(QuasselCoreClient).GetField("_missedHeartBeats", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(missedField);
+        missedField!.SetValue(client, 1);
+
+        var payload = QtPayloadBuilder.BuildPackedMessage(6, false, DateTimeOffset.UtcNow);
+        var method = typeof(QuasselCoreClient).GetMethod("HandlePackedMessageAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(method);
+
+        var task = Assert.IsAssignableFrom<Task>(method!.Invoke(client, [new ReadOnlyMemory<byte>(payload), CancellationToken.None]));
+        await task;
+
+        Assert.Equal(0, Assert.IsType<int>(missedField.GetValue(client)));
+    }
+
+    [Fact]
+    public async Task HeartBeatLoop_MarksConnectionLostAfterMissingReplies()
+    {
+        var client = new QuasselCoreClient(TimeSpan.FromMilliseconds(5), maxMissedHeartBeats: 1);
+        var streamField = typeof(QuasselCoreClient).GetField("_stream", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(streamField);
+        streamField!.SetValue(client, new MemoryStream());
+
+        var states = new List<(QuasselConnectionState State, string? Message)>();
+        client.ConnectionStateChanged += (state, message) => states.Add((state, message));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        var method = typeof(QuasselCoreClient).GetMethod("HeartBeatLoopAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(method);
+
+        var task = Assert.IsAssignableFrom<Task>(method!.Invoke(client, [cts.Token]));
+        await task;
+
+        var finalState = Assert.Single(states);
+        Assert.Equal(QuasselConnectionState.Error, finalState.State);
+        Assert.Equal("Lost connection to Quassel core: no heartbeat reply received.", finalState.Message);
+        Assert.False(client.IsConnected);
+    }
 }

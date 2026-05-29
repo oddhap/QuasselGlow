@@ -13,4 +13,5 @@ public sealed record StoredConnectionSettings(
     string LanguageCode = "",
     string ThemeKey = "",
     string ThemeModeKey = "",
-    bool MinimizeToTray = false);
+    bool MinimizeToTray = false,
+    bool AutoReconnect = false);

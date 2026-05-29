@@ -15,9 +15,12 @@ namespace QuasselGlow.ViewModels;
 
 public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
 {
+    private static readonly TimeSpan DefaultAutoReconnectDelay = TimeSpan.FromSeconds(5);
+
     private readonly IQuasselSessionService _session;
     private readonly IConnectionSettingsStore _settingsStore;
     private readonly bool _marshalToUiThread;
+    private readonly TimeSpan _autoReconnectDelay;
     private readonly UiTextCatalog _strings = UiTextCatalog.Instance;
     private readonly Dictionary<NetworkId, NetworkItemViewModel> _networksById = new();
     private readonly Dictionary<BufferId, BufferItemViewModel> _buffersById = new();
@@ -32,6 +35,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private BufferItemViewModel? _selectedBuffer;
     private bool _isApplyingStoredSettings;
     private bool _statusUsesCustomText;
+    private bool _manualDisconnectRequested;
+    private bool _hasHadReadySession;
+    private bool _isConnectionAttemptInProgress;
+    private bool _isAutoReconnectAttempt;
+    private CancellationTokenSource? _autoReconnectCts;
     private string? _lastConnectionStateMessage;
     private string _statusDetailOverride = string.Empty;
     private string _selectedLanguageCode = UiTextCatalog.Instance.CurrentLanguageCode;
@@ -63,6 +71,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     [ObservableProperty]
     private bool _autoConnectOnStartup;
+
+    [ObservableProperty]
+    private bool _autoReconnect;
 
     [ObservableProperty]
     private bool _isConnectionEditorOpen;
@@ -99,11 +110,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     {
     }
 
-    public MainWindowViewModel(IQuasselSessionService session, IConnectionSettingsStore settingsStore, bool marshalToUiThread = true)
+    public MainWindowViewModel(
+        IQuasselSessionService session,
+        IConnectionSettingsStore settingsStore,
+        bool marshalToUiThread = true,
+        TimeSpan? autoReconnectDelay = null)
     {
         _session = session;
         _settingsStore = settingsStore;
         _marshalToUiThread = marshalToUiThread;
+        _autoReconnectDelay = autoReconnectDelay ?? DefaultAutoReconnectDelay;
         _isApplyingStoredSettings = true;
         try
         {
@@ -517,7 +533,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     [RelayCommand(CanExecute = nameof(CanConnect))]
     private async Task ConnectAsync()
     {
+        await ExecuteConnectAsync(isAutoReconnect: false).ConfigureAwait(false);
+    }
+
+    private async Task ExecuteConnectAsync(bool isAutoReconnect)
+    {
         IsBusy = true;
+        _manualDisconnectRequested = false;
+        if (!isAutoReconnect)
+        {
+            _hasHadReadySession = false;
+        }
+
+        _isAutoReconnectAttempt = isAutoReconnect;
+        _isConnectionAttemptInProgress = true;
+        CancelAutoReconnect();
         try
         {
             var trimmedHost = Host.Trim();
@@ -529,29 +559,35 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             var port = GetPortForConnection();
             await _session.ConnectAsync(new ConnectionProfile(trimmedHost, port, Username.Trim(), Password, TrustInvalidCertificates))
                 .ConfigureAwait(false);
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await RunOnUiThreadAsync(() =>
             {
                 IsConnectionEditorOpen = false;
                 SaveSettings();
-            });
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await RunOnUiThreadAsync(() =>
             {
                 _statusUsesCustomText = true;
                 StatusText = ex.Message;
                 _statusDetailOverride = string.Empty;
                 OnPropertyChanged(nameof(ConnectionStatusDetailText));
-            });
+            }).ConfigureAwait(false);
+
+            if (isAutoReconnect && ShouldAutoReconnectFromCurrentPreferences())
+            {
+                await RunOnUiThreadAsync(ScheduleAutoReconnect).ConfigureAwait(false);
+            }
         }
         finally
         {
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            _isConnectionAttemptInProgress = false;
+            await RunOnUiThreadAsync(() =>
             {
                 IsBusy = false;
                 NotifyCommandState();
-            });
+            }).ConfigureAwait(false);
         }
     }
 
@@ -561,17 +597,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private async Task DisconnectAsync()
     {
         IsBusy = true;
+        _manualDisconnectRequested = true;
+        _hasHadReadySession = false;
+        _isAutoReconnectAttempt = false;
+        CancelAutoReconnect();
         try
         {
             await _session.DisconnectAsync().ConfigureAwait(false);
         }
         finally
         {
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await RunOnUiThreadAsync(() =>
             {
                 IsBusy = false;
                 NotifyCommandState();
-            });
+            }).ConfigureAwait(false);
         }
     }
 
@@ -904,6 +944,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public async ValueTask DisposeAsync()
     {
+        CancelAutoReconnect();
         SaveSettings();
         await _session.DisposeAsync().ConfigureAwait(false);
     }
@@ -940,6 +981,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         if (value && !RememberLogin)
         {
             RememberLogin = true;
+        }
+
+        SaveSettingsIfReady();
+    }
+
+    partial void OnAutoReconnectChanged(bool value)
+    {
+        if (!value)
+        {
+            CancelAutoReconnect();
         }
 
         SaveSettingsIfReady();
@@ -1027,6 +1078,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     {
         RunOnUiThread(() =>
         {
+            if (state == QuasselConnectionState.Ready)
+            {
+                _hasHadReadySession = true;
+                _isAutoReconnectAttempt = false;
+                CancelAutoReconnect();
+            }
+
+            var shouldAutoReconnect = ShouldAutoReconnectAfterConnectionLoss(state);
             _connectionState = state;
             _lastConnectionStateMessage = message;
             _statusDetailOverride = string.Empty;
@@ -1044,7 +1103,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             OnPropertyChanged(nameof(SessionSummaryText));
             NotifyCommandState();
 
-            if (state == QuasselConnectionState.Error)
+            if (state == QuasselConnectionState.Error && !shouldAutoReconnect)
             {
                 IsThemeEditorOpen = false;
                 IsConnectionEditorOpen = true;
@@ -1061,6 +1120,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
                 _pendingChannelSwitchKeys.Clear();
                 SelectedBuffer = null;
                 OnPropertyChanged(nameof(SessionSummaryText));
+            }
+
+            if (shouldAutoReconnect)
+            {
+                ScheduleAutoReconnect();
             }
         });
     }
@@ -1388,6 +1452,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         SelectedThemeKey = settings.ThemeKey;
         SelectedThemeModeKey = settings.ThemeModeKey;
         MinimizeToTrayEnabled = settings.MinimizeToTray;
+        AutoReconnect = settings.AutoReconnect;
     }
 
     private void SaveSettings()
@@ -1405,7 +1470,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             SelectedLanguageCode,
             SelectedThemeKey,
             SelectedThemeModeKey,
-            MinimizeToTrayEnabled));
+            MinimizeToTrayEnabled,
+            AutoReconnect));
 
         ApplyConnectionSettingsSaveResult(result);
     }
@@ -1417,6 +1483,72 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             && !string.IsNullOrWhiteSpace(Host)
             && !string.IsNullOrWhiteSpace(Username)
             && !string.IsNullOrWhiteSpace(Password);
+    }
+
+    private bool ShouldAutoReconnectAfterConnectionLoss(QuasselConnectionState state)
+    {
+        return state is QuasselConnectionState.Disconnected or QuasselConnectionState.Error
+            && !_manualDisconnectRequested
+            && !_isConnectionAttemptInProgress
+            && (_hasHadReadySession || _isAutoReconnectAttempt)
+            && ShouldAutoReconnectFromCurrentPreferences();
+    }
+
+    private bool ShouldAutoReconnectFromCurrentPreferences()
+    {
+        return AutoReconnect
+            && !string.IsNullOrWhiteSpace(Host)
+            && !string.IsNullOrWhiteSpace(Username)
+            && !string.IsNullOrWhiteSpace(Password);
+    }
+
+    private void ScheduleAutoReconnect()
+    {
+        CancelAutoReconnect();
+        _isAutoReconnectAttempt = true;
+        _statusDetailOverride = _strings["StatusReconnecting"];
+        _statusUsesCustomText = false;
+        StatusText = BuildConnectionStatusText(_connectionState, _lastConnectionStateMessage);
+        OnPropertyChanged(nameof(TrayToolTipText));
+        OnPropertyChanged(nameof(ConnectionStatusDetailText));
+
+        var cts = new CancellationTokenSource();
+        _autoReconnectCts = cts;
+        _ = AutoReconnectAfterDelayAsync(cts.Token);
+    }
+
+    private async Task AutoReconnectAfterDelayAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (_autoReconnectDelay > TimeSpan.Zero)
+            {
+                await Task.Delay(_autoReconnectDelay, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (cancellationToken.IsCancellationRequested || _manualDisconnectRequested || !ShouldAutoReconnectFromCurrentPreferences())
+            {
+                return;
+            }
+
+            await RunOnUiThreadAsync(() => _ = ExecuteConnectAsync(isAutoReconnect: true)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void CancelAutoReconnect()
+    {
+        var cts = _autoReconnectCts;
+        _autoReconnectCts = null;
+        if (cts is null)
+        {
+            return;
+        }
+
+        cts.Cancel();
+        cts.Dispose();
     }
 
     private void SaveSettingsIfReady()
@@ -1930,6 +2062,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         }
 
         Dispatcher.UIThread.Post(action);
+    }
+
+    private async Task RunOnUiThreadAsync(Action action)
+    {
+        if (!_marshalToUiThread || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(action);
     }
 
     private void ApplyCachedChannelState(BufferItemViewModel buffer)

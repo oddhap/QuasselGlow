@@ -263,6 +263,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("Password", "Password"),
             ("RememberLogin", "Remember login"),
             ("AutoConnectOnStartup", "Connect on startup"),
+            ("AutoReconnect", "Reconnect automatically"),
             ("AllowInsecureTls", "Allow insecure TLS"),
             ("MinimizeToTray", "Minimize to tray"),
             ("Done", "Done"),
@@ -358,6 +359,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("StatusAuthenticating", "Signing in..."),
             ("StatusSynchronizing", "Receiving session state..."),
             ("StatusConnected", "Connected"),
+            ("StatusReconnecting", "Reconnecting..."),
             ("StatusDisconnectedByCore", "Disconnected by core"),
             ("StatusConnectionError", "Connection error"),
             ("HostCannotBeEmpty", "Host can't be empty."),
@@ -384,6 +386,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("Password", "Passord"),
             ("RememberLogin", "Husk innlogging"),
             ("AutoConnectOnStartup", "Koble til ved oppstart"),
+            ("AutoReconnect", "Koble til igjen automatisk"),
             ("AllowInsecureTls", "Godta usikker TLS"),
             ("MinimizeToTray", "Minimer til tray"),
             ("Done", "Ferdig"),
@@ -479,6 +482,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("StatusAuthenticating", "Logger inn..."),
             ("StatusSynchronizing", "Leser inn økttilstand..."),
             ("StatusConnected", "Tilkoblet"),
+            ("StatusReconnecting", "Kobler til igjen..."),
             ("StatusDisconnectedByCore", "Frakoblet av core"),
             ("StatusConnectionError", "Tilkoblingsfeil"),
             ("HostCannotBeEmpty", "Vert kan ikke være tom."),
@@ -2270,6 +2274,8 @@ public sealed class UiTextCatalog : ObservableObject
             ("Whois", "Whois"),
             ("Overview", "Overview"),
             ("AutoConnectOnStartup", "Connect on startup"),
+            ("AutoReconnect", "Reconnect automatically"),
+            ("StatusReconnecting", "Reconnecting..."),
             ("ConnectionSummaryEndpointOnly", "{0}"));
 
         foreach (var code in SupportedLanguageCodes)

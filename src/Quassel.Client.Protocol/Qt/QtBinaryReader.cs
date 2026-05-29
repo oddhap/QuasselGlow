@@ -201,7 +201,7 @@ internal sealed class QtBinaryReader
         }
 
         var dateTime = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified).Add(time);
-        return spec is 2 or 3
+        return spec is 1 or 2 or 3
             ? new DateTimeOffset(DateTime.SpecifyKind(dateTime, DateTimeKind.Utc))
             : new DateTimeOffset(dateTime, TimeZoneInfo.Local.GetUtcOffset(dateTime));
     }

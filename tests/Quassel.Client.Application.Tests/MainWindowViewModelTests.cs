@@ -137,6 +137,51 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task AutoReconnect_ReconnectsAfterReadySessionIsLost()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(
+            Host: "chat.example",
+            Port: 4242,
+            Username: "alice",
+            Password: "hemmelig",
+            AutoReconnect: true));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false, autoReconnectDelay: TimeSpan.Zero);
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitConnectionState(QuasselConnectionState.Error, "Lost connection to Quassel core: no heartbeat reply received.");
+
+        await WaitUntilAsync(() => session.ConnectRequests.Count == 1);
+
+        var profile = Assert.Single(session.ConnectRequests);
+        Assert.Equal("chat.example", profile.Host);
+        Assert.Equal(4242, profile.Port);
+        Assert.Equal("alice", profile.Username);
+        Assert.Equal("hemmelig", profile.Password);
+        Assert.Equal(viewModel.Strings["StatusReconnecting"], viewModel.ConnectionStatusDetailText);
+    }
+
+    [Fact]
+    public async Task AutoReconnect_DoesNotReconnectAfterManualDisconnect()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(
+            Host: "chat.example",
+            Username: "alice",
+            Password: "hemmelig",
+            AutoReconnect: true));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false, autoReconnectDelay: TimeSpan.Zero);
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        await viewModel.DisconnectCommand.ExecuteAsync(null);
+        session.EmitConnectionState(QuasselConnectionState.Disconnected, "Disconnected");
+        await Task.Delay(25);
+
+        Assert.Empty(session.ConnectRequests);
+        Assert.Equal(1, session.DisconnectRequests);
+    }
+
+    [Fact]
     public void SessionStateReceived_SelectsInitialBufferAndUpdatesSessionSummary()
     {
         var session = new FakeSessionService();
@@ -1161,6 +1206,15 @@ public sealed class MainWindowViewModelTests
         }
     }
 
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        while (!condition())
+        {
+            await Task.Delay(10, cts.Token);
+        }
+    }
+
     private sealed class FakeSessionService : IQuasselSessionService
     {
         public event Action<QuasselConnectionState, string?>? ConnectionStateChanged;
@@ -1178,6 +1232,7 @@ public sealed class MainWindowViewModelTests
         public List<(QuasselBufferInfo bufferInfo, string text)> SentInputs { get; } = [];
         public List<QuasselBufferInfo> DeletedBuffers { get; } = [];
         public List<ConnectionProfile> ConnectRequests { get; } = [];
+        public int DisconnectRequests { get; private set; }
         public Dictionary<BufferId, IReadOnlyList<QuasselMessage>> CachedMessages { get; } = [];
 
         public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
@@ -1185,7 +1240,11 @@ public sealed class MainWindowViewModelTests
             ConnectRequests.Add(profile);
             return Task.CompletedTask;
         }
-        public Task DisconnectAsync() => Task.CompletedTask;
+        public Task DisconnectAsync()
+        {
+            DisconnectRequests++;
+            return Task.CompletedTask;
+        }
         public Task SendInputAsync(QuasselBufferInfo bufferInfo, string text, CancellationToken cancellationToken = default)
         {
             SentInputs.Add((bufferInfo, text));

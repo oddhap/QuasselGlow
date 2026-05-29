@@ -112,6 +112,24 @@ internal sealed class QtBinaryWriter
         }
     }
 
+    public void WriteQDate(DateOnly value)
+    {
+        WriteUInt32(value == default ? 0 : (uint)(value.DayNumber + 1721426));
+    }
+
+    public void WriteQTime(TimeSpan value)
+    {
+        WriteUInt32((uint)value.TotalMilliseconds);
+    }
+
+    public void WriteQDateTime(DateTimeOffset value)
+    {
+        var utc = value.ToUniversalTime();
+        WriteQDate(DateOnly.FromDateTime(utc.UtcDateTime));
+        WriteQTime(utc.TimeOfDay);
+        WriteSByte(1);
+    }
+
     public void WriteVariantList(IReadOnlyList<object?> values)
     {
         WriteUInt32((uint)values.Count);
@@ -190,6 +208,10 @@ internal sealed class QtBinaryWriter
             case byte[] bytes:
                 WriteHeader(QtVariantType.QByteArray);
                 WriteByteArray(bytes);
+                return;
+            case DateTimeOffset dateTime:
+                WriteHeader(QtVariantType.QDateTime);
+                WriteQDateTime(dateTime);
                 return;
             case IReadOnlyDictionary<string, object?> map:
                 WriteHeader(QtVariantType.QVariantMap);

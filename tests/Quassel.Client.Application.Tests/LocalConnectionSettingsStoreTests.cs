@@ -26,7 +26,8 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             LanguageCode: "nb",
             ThemeKey: "ember",
             ThemeModeKey: "dark",
-            MinimizeToTray: true);
+            MinimizeToTray: true,
+            AutoReconnect: true);
 
         var saveResult = store.Save(expected);
         var loadResult = store.Load();
@@ -47,6 +48,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.Equal(expected.ThemeKey, actual.ThemeKey);
         Assert.Equal(expected.ThemeModeKey, actual.ThemeModeKey);
         Assert.True(actual.MinimizeToTray);
+        Assert.True(actual.AutoReconnect);
     }
 
     [Fact]
@@ -69,7 +71,8 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             LanguageCode: "en_US",
             ThemeKey: "tide",
             ThemeModeKey: "light",
-            MinimizeToTray: false));
+            MinimizeToTray: false,
+            AutoReconnect: true));
 
         var loadResult = store.Load();
         var actual = loadResult.Settings;
@@ -87,6 +90,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.Equal("tide", actual.ThemeKey);
         Assert.Equal("light", actual.ThemeModeKey);
         Assert.False(actual.MinimizeToTray);
+        Assert.True(actual.AutoReconnect);
         Assert.Equal(string.Empty, actual.Username);
         Assert.Equal(string.Empty, actual.Password);
     }

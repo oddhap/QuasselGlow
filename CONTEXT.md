@@ -12,6 +12,10 @@ _Avoid_: polish, stability, reliability
 The remote Quassel server process that owns IRC network connections, persistent buffers, backlog, authentication, and synchronized chat state.
 _Avoid_: server, backend
 
+**Lost Quassel core connection**:
+The desktop client's conclusion that its active Quassel core session is no longer alive and must move out of connected chat use.
+_Avoid_: server lost, silent disconnect
+
 **Desktop client**:
 The local QuasselGlow application that presents Quassel core state, accepts user input, and stores local preferences or cache data.
 _Avoid_: frontend, UI
@@ -21,7 +25,7 @@ User-owned state kept by the desktop client rather than the Quassel core, includ
 _Avoid_: settings, cache, app state
 
 **Connection preferences**:
-The local user state that tells the desktop client how to reconnect to a Quassel core, including host, port, username, TLS trust choice, remember-login choice, auto-connect choice, language, appearance, layout, and tray behavior.
+The local user state that tells the desktop client how to connect or reconnect to a Quassel core, including host, port, username, TLS trust choice, remember-login choice, startup auto-connect choice, automatic reconnect choice, language, appearance, layout, and tray behavior.
 _Avoid_: settings, config
 
 **Credential protection**:

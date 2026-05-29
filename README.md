@@ -130,13 +130,15 @@ The app stores local connection settings in the user's local application data fo
 
 The selected UI language is also stored locally. QuasselGlow exposes the same locale list as the official Quassel translation set and ships with translated UI labels for that full locale set.
 
-Recent desktop polish includes persisted themes with dark mode, PM and mention alerts, tray support, emoji-friendly font fallback, composer autofocus after connecting, automatic reconnect for saved servers, nick autocomplete with `Tab`, a permanently pinned user list in desktop layout, and local message cache for faster channel startup after reconnecting.
+Connection preferences now distinguish between connecting automatically on startup and reconnecting automatically after a live Quassel core session is lost. The reconnect option waits until the desktop client has reached an active session, then retries with the current connection preferences unless the user disconnects manually.
+
+Recent desktop polish includes persisted themes with dark mode, wallpaper-matched appearance, PM and mention alerts, tray support, emoji-friendly font fallback, composer autofocus after connecting, startup auto-connect for remembered login, automatic reconnect after lost Quassel core sessions, nick autocomplete with `Tab`, a permanently pinned user list in desktop layout, and local message cache for faster channel startup after reconnecting.
 
 ## Recent Release Notes
 
-The `v0.2.9` update refreshes the desktop app to Avalonia 12.0.1, removes the legacy `Avalonia.Diagnostics` package that no longer ships with Avalonia 12, and resolves the vulnerable transitive package warning that appeared in the previous desktop dependency set.
+The `v0.2.11` update adds protocol heartbeat monitoring so QuasselGlow can detect a lost Quassel core connection instead of staying silently connected on a dead stream. A new connection preference lets users automatically reconnect after an active session is lost while still respecting manual disconnects.
 
-On macOS, the same release also fixes the custom title-bar behavior so QuasselGlow keeps its manual traffic-light controls without showing duplicate native caption buttons, while still preserving the native rounded frame and border styling.
+This release also keeps the Quassel DataStream heartbeat timestamp compatible with Qt `QDateTime`, persists the new reconnect preference with the rest of the connection preferences, and expands regression coverage around heartbeat timeouts and reconnect behavior.
 
 ## Notes
 

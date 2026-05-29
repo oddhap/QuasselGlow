@@ -20,8 +20,12 @@ public sealed class QuasselCoreClient : IAsyncDisposable
     private const short InitDataRequestType = 4;
     private const short HeartBeatRequestType = 5;
     private const short HeartBeatReplyRequestType = 6;
+    private static readonly TimeSpan DefaultHeartBeatInterval = TimeSpan.FromSeconds(30);
+    private const int DefaultMaxMissedHeartBeats = 2;
 
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly TimeSpan _heartBeatInterval;
+    private readonly int _maxMissedHeartBeats;
     private readonly Dictionary<NetworkId, QuasselNetworkState> _networkStates = new();
     private readonly Dictionary<string, QuasselChannelState> _channelStates = new(StringComparer.OrdinalIgnoreCase);
     private static readonly string[] SupportedFeatureList = ["ExtendedFeatures", "LongMessageId"];
@@ -32,6 +36,8 @@ public sealed class QuasselCoreClient : IAsyncDisposable
     private TcpClient? _tcpClient;
     private Stream? _stream;
     private Task? _receiveLoop;
+    private Task? _heartBeatLoop;
+    private int _missedHeartBeats;
     private bool _useLongMessageIds;
 
     public event Action<QuasselConnectionState, string?>? ConnectionStateChanged;
@@ -47,6 +53,17 @@ public sealed class QuasselCoreClient : IAsyncDisposable
     public event Action<NetworkId>? NetworkRemoved;
 
     public bool IsConnected => _stream is not null;
+
+    public QuasselCoreClient()
+        : this(DefaultHeartBeatInterval, DefaultMaxMissedHeartBeats)
+    {
+    }
+
+    internal QuasselCoreClient(TimeSpan heartBeatInterval, int maxMissedHeartBeats)
+    {
+        _heartBeatInterval = heartBeatInterval;
+        _maxMissedHeartBeats = maxMissedHeartBeats;
+    }
 
     public async Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken = default)
     {
@@ -118,7 +135,9 @@ public sealed class QuasselCoreClient : IAsyncDisposable
                         var sessionState = ParseSessionState(handshake);
                         OnConnectionStateChanged(QuasselConnectionState.Synchronizing, "Receiving session state");
                         SessionStateReceived?.Invoke(sessionState);
+                        _missedHeartBeats = 0;
                         _receiveLoop = Task.Run(() => ReceiveLoopAsync(token), CancellationToken.None);
+                        _heartBeatLoop = Task.Run(() => HeartBeatLoopAsync(token), CancellationToken.None);
                         OnConnectionStateChanged(QuasselConnectionState.Ready, "Connected");
                         return;
 
@@ -260,6 +279,41 @@ public sealed class QuasselCoreClient : IAsyncDisposable
         }
     }
 
+    private async Task HeartBeatLoopAsync(CancellationToken cancellationToken)
+    {
+        if (_heartBeatInterval <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            using var timer = new PeriodicTimer(_heartBeatInterval);
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (_maxMissedHeartBeats > 0 && Volatile.Read(ref _missedHeartBeats) >= _maxMissedHeartBeats)
+                {
+                    const string message = "Lost connection to Quassel core: no heartbeat reply received.";
+                    StatusReceived?.Invoke(message);
+                    await DisconnectInternalAsync(QuasselConnectionState.Error, message, skipReceiveLoopAwait: true, skipHeartBeatLoopAwait: true)
+                        .ConfigureAwait(false);
+                    return;
+                }
+
+                await SendPackedAsync(HeartBeatRequestType, cancellationToken, DateTimeOffset.UtcNow).ConfigureAwait(false);
+                Interlocked.Increment(ref _missedHeartBeats);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            StatusReceived?.Invoke(ex.Message);
+            await DisconnectInternalAsync(QuasselConnectionState.Error, ex.Message, skipReceiveLoopAwait: true, skipHeartBeatLoopAwait: true).ConfigureAwait(false);
+        }
+    }
+
     private async Task HandlePackedMessageAsync(ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
         var reader = new QtBinaryReader(payload, _useLongMessageIds);
@@ -278,6 +332,7 @@ public sealed class QuasselCoreClient : IAsyncDisposable
 
         if (requestType == HeartBeatReplyRequestType)
         {
+            Interlocked.Exchange(ref _missedHeartBeats, 0);
             return;
         }
 
@@ -932,21 +987,38 @@ public sealed class QuasselCoreClient : IAsyncDisposable
         return buffer;
     }
 
-    private async Task DisconnectInternalAsync(QuasselConnectionState endState, string? message, bool skipReceiveLoopAwait)
+    private async Task DisconnectInternalAsync(
+        QuasselConnectionState endState,
+        string? message,
+        bool skipReceiveLoopAwait,
+        bool skipHeartBeatLoopAwait = false)
     {
-        var loop = _receiveLoop;
+        var receiveLoop = _receiveLoop;
+        var heartBeatLoop = _heartBeatLoop;
         _receiveLoop = null;
+        _heartBeatLoop = null;
 
         if (_lifetime is { IsCancellationRequested: false })
         {
             _lifetime.Cancel();
         }
 
-        if (!skipReceiveLoopAwait && loop is not null)
+        if (!skipReceiveLoopAwait && receiveLoop is not null)
         {
             try
             {
-                await loop.ConfigureAwait(false);
+                await receiveLoop.ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
+        if (!skipHeartBeatLoopAwait && heartBeatLoop is not null)
+        {
+            try
+            {
+                await heartBeatLoop.ConfigureAwait(false);
             }
             catch
             {
@@ -956,6 +1028,7 @@ public sealed class QuasselCoreClient : IAsyncDisposable
         _networkStates.Clear();
         _channelStates.Clear();
         _useLongMessageIds = false;
+        _missedHeartBeats = 0;
 
         if (_stream is IAsyncDisposable asyncDisposable)
         {
