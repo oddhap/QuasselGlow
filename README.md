@@ -140,6 +140,8 @@ The `v0.2.11` update adds protocol heartbeat monitoring so QuasselGlow can detec
 
 This release also keeps the Quassel DataStream heartbeat timestamp compatible with Qt `QDateTime`, persists the new reconnect preference with the rest of the connection preferences, and expands regression coverage around heartbeat timeouts and reconnect behavior.
 
+A follow-up desktop polish change highlights user-list nick rows on hover so channel users are easier to scan before opening their context menu.
+
 ## Notes
 
 - This project is not an official Quassel release.

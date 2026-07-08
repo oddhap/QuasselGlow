@@ -127,10 +127,23 @@
             <Setter Property="Padding" Value="12,10" />
         </Style>
 
+        <Style Selector="Border.userRow:pointerover">
+            <Setter Property="Background" Value="{StaticResource AccentSky}" />
+            <Setter Property="BorderBrush" Value="{StaticResource AccentTeal}" />
+        </Style>
+
         <Style Selector="TextBlock.userPrefix">
             <Setter Property="Width" Value="18" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource AccentTeal}" />
+        </Style>
+
+        <Style Selector="TextBlock.userNick">
+            <Setter Property="Foreground" Value="{StaticResource InkStrong}" />
+        </Style>
+
+        <Style Selector="Border.userRow:pointerover TextBlock.userNick">
             <Setter Property="Foreground" Value="{StaticResource AccentTeal}" />
         </Style>
 
@@ -1347,6 +1360,7 @@
                                                             <TextBlock Classes="userPrefix"
                                                                        Text="{Binding Prefix}" />
                                                             <TextBlock Grid.Column="1"
+                                                                       Classes="userNick"
                                                                        Text="{Binding Nick}"
                                                                        FontWeight="SemiBold"
                                                                        VerticalAlignment="Center" />
