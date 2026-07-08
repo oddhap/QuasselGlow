@@ -13,7 +13,7 @@
         Height="920"
         MinWidth="920"
         MinHeight="620"
-        WindowDecorations="Full"
+        WindowDecorations="BorderOnly"
         ExtendClientAreaToDecorationsHint="True"
         Icon="/Assets/Icons/quassel.ico"
         Title="Quassel Glow"

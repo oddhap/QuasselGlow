@@ -51,14 +51,11 @@ public partial class MainWindow : Window
     {
         ExtendClientAreaToDecorationsHint = true;
 
-        // On macOS we keep the native frame, but not the native caption buttons, so the
-        // window still gets rounded corners and the standard border without duplicating
-        // the custom traffic-light buttons rendered by the app.
-        WindowDecorations = OperatingSystem.IsMacOS()
-            ? WindowDecorations.BorderOnly
-            : OperatingSystem.IsLinux()
-                ? WindowDecorations.None
-                : WindowDecorations.Full;
+        // Keep native resize borders where they are useful, but leave the title
+        // bar and caption buttons to the app-rendered chrome.
+        WindowDecorations = OperatingSystem.IsLinux()
+            ? WindowDecorations.None
+            : WindowDecorations.BorderOnly;
     }
 
     private void OnOpened(object? sender, EventArgs e)
