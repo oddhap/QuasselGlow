@@ -12,7 +12,17 @@ if [[ -z "$version" ]]; then
   exit 1
 fi
 
-release_root="$repo_root/.artifacts/releases/v$version/linux-x64"
+machine_arch="$(uname -m)"
+case "$machine_arch" in
+  x86_64) runtime_identifier="linux-x64" ;;
+  aarch64|arm64) runtime_identifier="linux-arm64" ;;
+  *)
+    echo "Unsupported Linux architecture: $machine_arch" >&2
+    exit 1
+    ;;
+esac
+
+release_root="$repo_root/.artifacts/releases/v$version/$runtime_identifier"
 binary_source="$release_root/QuasselGlow"
 
 install_root="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -34,7 +44,7 @@ mkdir -p "$DOTNET_CLI_HOME" "$NUGET_PACKAGES"
 
 dotnet publish "$project_path" \
   -c Release \
-  -r linux-x64 \
+  -r "$runtime_identifier" \
   --self-contained true \
   --force \
   -p:PublishSingleFile=true \

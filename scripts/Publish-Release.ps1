@@ -5,7 +5,7 @@ param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
 
-    [string[]]$RuntimeIdentifiers = @("win-x64", "linux-x64", "osx-x64", "osx-arm64"),
+    [string[]]$RuntimeIdentifiers = @("win-x64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64"),
 
     [switch]$SkipValidation,
 
@@ -153,6 +153,19 @@ function New-ZipArchiveFromPath {
         return
     }
 
+    if ((-not $IsWindows) -and (Test-CommandAvailable -Name "zip")) {
+        $sourceParent = Split-Path -Parent $resolvedSourcePath
+        $sourceName = Split-Path -Leaf $resolvedSourcePath
+        Push-Location $sourceParent
+        try {
+            Invoke-External -FilePath "zip" -Arguments @("-q", "-r", $ArchivePath, $sourceName)
+        }
+        finally {
+            Pop-Location
+        }
+        return
+    }
+
     Compress-Archive -Path $resolvedSourcePath -DestinationPath $ArchivePath -CompressionLevel Optimal
 }
 
@@ -164,6 +177,17 @@ function New-ZipArchiveFromDirectoryContents {
 
     if (Test-Path $ArchivePath) {
         Remove-Item -LiteralPath $ArchivePath -Force
+    }
+
+    if ((-not $IsWindows) -and (Test-CommandAvailable -Name "zip")) {
+        Push-Location $DirectoryPath
+        try {
+            Invoke-External -FilePath "zip" -Arguments @("-q", "-r", $ArchivePath, ".")
+        }
+        finally {
+            Pop-Location
+        }
+        return
     }
 
     Compress-Archive -Path (Join-Path $DirectoryPath "*") -DestinationPath $ArchivePath -CompressionLevel Optimal
