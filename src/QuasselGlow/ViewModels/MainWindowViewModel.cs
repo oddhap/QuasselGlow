@@ -155,6 +155,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public UiTextCatalog Strings => _strings;
 
+    public string VersionText => $"v{typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0"}";
+
     public IReadOnlyList<UiLanguageOption> SupportedLanguages => _strings.SupportedLanguages;
 
     public ObservableCollection<AppDisplayOption> SupportedThemes => _supportedThemes;
