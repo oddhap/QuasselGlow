@@ -107,10 +107,15 @@ public sealed class UiTextCatalog : ObservableObject
 
     public static string ResolveLanguageCode(string? languageCode)
     {
+        return ResolveLanguageCode(languageCode, CultureInfo.CurrentUICulture.Name);
+    }
+
+    public static string ResolveLanguageCode(string? languageCode, string? operatingSystemLanguageCode)
+    {
         var normalized = NormalizeLanguageCode(languageCode);
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            normalized = NormalizeLanguageCode(CultureInfo.CurrentUICulture.Name);
+            normalized = NormalizeLanguageCode(operatingSystemLanguageCode);
         }
 
         if (string.IsNullOrWhiteSpace(normalized))

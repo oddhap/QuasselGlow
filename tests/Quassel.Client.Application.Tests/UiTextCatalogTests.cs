@@ -92,4 +92,22 @@ public sealed class UiTextCatalogTests
     {
         Assert.Equal(expected, UiTextCatalog.ResolveLanguageCode(input));
     }
+
+    [Fact]
+    public void ResolveLanguageCode_UsesOperatingSystemLanguageWhenPreferenceIsEmpty()
+    {
+        Assert.Equal("nb", UiTextCatalog.ResolveLanguageCode(string.Empty, "nb-NO"));
+    }
+
+    [Fact]
+    public void ResolveLanguageCode_FallsBackToEnglishWhenOperatingSystemLanguageIsUnsupported()
+    {
+        Assert.Equal(UiTextCatalog.DefaultLanguageCode, UiTextCatalog.ResolveLanguageCode(null, "is-IS"));
+    }
+
+    [Fact]
+    public void ResolveLanguageCode_ManualPreferenceOverridesOperatingSystemLanguage()
+    {
+        Assert.Equal("de", UiTextCatalog.ResolveLanguageCode("de", "nb-NO"));
+    }
 }
