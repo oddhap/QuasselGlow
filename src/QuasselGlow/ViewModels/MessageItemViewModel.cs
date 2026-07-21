@@ -28,6 +28,9 @@ public sealed class MessageItemViewModel : ViewModelBase
         @"(?<url>(?:https?://|www\.)[^\s<>""]+[^\s<>"".,;:!?])",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private bool _isDaySeparatorVisible;
+    private string _daySeparatorText = string.Empty;
+
     public MessageItemViewModel(QuasselMessage message)
     {
         Model = message;
@@ -51,6 +54,23 @@ public sealed class MessageItemViewModel : ViewModelBase
     public bool IsSelf => Model.IsSelf;
     public bool IsHighlight => Model.IsHighlight;
     public bool IsStatus => IsStatusMessage(Model);
+    public bool IsDaySeparatorVisible
+    {
+        get => _isDaySeparatorVisible;
+        private set => SetProperty(ref _isDaySeparatorVisible, value);
+    }
+
+    public string DaySeparatorText
+    {
+        get => _daySeparatorText;
+        private set => SetProperty(ref _daySeparatorText, value);
+    }
+
+    internal void SetDaySeparator(bool isVisible, string text)
+    {
+        IsDaySeparatorVisible = isVisible;
+        DaySeparatorText = isVisible ? text : string.Empty;
+    }
 
     private static bool IsStatusMessage(QuasselMessage message)
     {

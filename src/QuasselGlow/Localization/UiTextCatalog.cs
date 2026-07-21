@@ -271,6 +271,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("AutoReconnect", "Reconnect automatically"),
             ("AllowInsecureTls", "Allow insecure TLS"),
             ("MinimizeToTray", "Minimize to tray"),
+            ("ShowDaySeparators", "Show date separators in chat"),
             ("Done", "Done"),
             ("Overview", "Overview"),
             ("Network", "Network"),
@@ -394,6 +395,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("AutoReconnect", "Koble til igjen automatisk"),
             ("AllowInsecureTls", "Godta usikker TLS"),
             ("MinimizeToTray", "Minimer til tray"),
+            ("ShowDaySeparators", "Vis datoskille i chatten"),
             ("Done", "Ferdig"),
             ("Overview", "Oversikt"),
             ("Network", "Nettverk"),
@@ -2280,6 +2282,7 @@ public sealed class UiTextCatalog : ObservableObject
             ("Overview", "Overview"),
             ("AutoConnectOnStartup", "Connect on startup"),
             ("AutoReconnect", "Reconnect automatically"),
+            ("ShowDaySeparators", "Show date separators in chat"),
             ("StatusReconnecting", "Reconnecting..."),
             ("ConnectionSummaryEndpointOnly", "{0}"));
 

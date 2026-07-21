@@ -624,7 +624,7 @@
                                             Content="{Binding Strings[Close]}" />
                                 </Grid>
 
-                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
                                     <Grid ColumnDefinitions="Auto,*,132" ColumnSpacing="12" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Strings[ThemeLabel]}"
                                                    VerticalAlignment="Center"
@@ -654,7 +654,11 @@
                                               Content="{Binding Strings[MinimizeToTray]}"
                                               IsChecked="{Binding MinimizeToTrayEnabled}" />
 
-                                    <TextBlock Grid.Row="3"
+                                    <CheckBox Grid.Row="3"
+                                              Content="{Binding Strings[ShowDaySeparators]}"
+                                              IsChecked="{Binding ShowDaySeparators}" />
+
+                                    <TextBlock Grid.Row="4"
                                                Margin="0,4,0,0"
                                                HorizontalAlignment="Right"
                                                Text="{Binding VersionText, StringFormat=QuasselGlow {0}}"
@@ -877,7 +881,7 @@
                                             Content="{Binding Strings[Close]}" />
                                 </Grid>
 
-                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+                                <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
                                     <Grid ColumnDefinitions="Auto,*,132" ColumnSpacing="12" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Strings[ThemeLabel]}"
                                                    VerticalAlignment="Center"
@@ -907,7 +911,11 @@
                                               Content="{Binding Strings[MinimizeToTray]}"
                                               IsChecked="{Binding MinimizeToTrayEnabled}" />
 
-                                    <TextBlock Grid.Row="3"
+                                    <CheckBox Grid.Row="3"
+                                              Content="{Binding Strings[ShowDaySeparators]}"
+                                              IsChecked="{Binding ShowDaySeparators}" />
+
+                                    <TextBlock Grid.Row="4"
                                                Margin="0,4,0,0"
                                                HorizontalAlignment="Right"
                                                Text="{Binding VersionText, StringFormat=QuasselGlow {0}}"
@@ -1251,32 +1259,51 @@
                                 </ListBox.ItemsPanel>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:MessageItemViewModel">
-                                        <Border Classes="messageRow"
-                                                Classes.self="{Binding IsSelf}"
-                                                Classes.highlight="{Binding IsHighlight}"
-                                                Classes.status="{Binding IsStatus}">
-                                            <Grid ColumnDefinitions="48,Auto,*"
-                                                  ColumnSpacing="8"
-                                                  Margin="0,1,0,0">
-                                                <TextBlock Text="{Binding TimestampText}"
-                                                           Classes.statusMeta="{Binding IsStatus}"
-                                                           Foreground="{StaticResource InkSoft}"
-                                                           FontFamily="{StaticResource MonoFontFamily}"
-                                                           VerticalAlignment="Top" />
+                                        <StackPanel Spacing="10">
+                                            <Grid ColumnDefinitions="*,Auto,*"
+                                                  ColumnSpacing="12"
+                                                  Margin="0,4"
+                                                  IsVisible="{Binding IsDaySeparatorVisible}">
+                                                <Border Height="1"
+                                                        VerticalAlignment="Center"
+                                                        Background="{StaticResource ShellBorder}" />
                                                 <TextBlock Grid.Column="1"
-                                                           Text="{Binding SenderDisplay}"
-                                                           FontWeight="Bold"
-                                                           Foreground="{StaticResource AccentRust}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           IsVisible="{Binding HasSender}" />
-                                                <SelectableTextBlock Grid.Column="{Binding MessageColumn}"
-                                                                     Grid.ColumnSpan="{Binding MessageColumnSpan}"
-                                                                     Classes="messageText"
-                                                                     Classes.statusBody="{Binding IsStatus}"
-                                                                     controls:MessageInlineRenderer.Segments="{Binding Segments}"
-                                                                     TextWrapping="Wrap" />
+                                                           Text="{Binding DaySeparatorText}"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource InkSoft}" />
+                                                <Border Grid.Column="2"
+                                                        Height="1"
+                                                        VerticalAlignment="Center"
+                                                        Background="{StaticResource ShellBorder}" />
                                             </Grid>
-                                        </Border>
+                                            <Border Classes="messageRow"
+                                                    Classes.self="{Binding IsSelf}"
+                                                    Classes.highlight="{Binding IsHighlight}"
+                                                    Classes.status="{Binding IsStatus}">
+                                                <Grid ColumnDefinitions="48,Auto,*"
+                                                      ColumnSpacing="8"
+                                                      Margin="0,1,0,0">
+                                                    <TextBlock Text="{Binding TimestampText}"
+                                                               Classes.statusMeta="{Binding IsStatus}"
+                                                               Foreground="{StaticResource InkSoft}"
+                                                               FontFamily="{StaticResource MonoFontFamily}"
+                                                               VerticalAlignment="Top" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding SenderDisplay}"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource AccentRust}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               IsVisible="{Binding HasSender}" />
+                                                    <SelectableTextBlock Grid.Column="{Binding MessageColumn}"
+                                                                         Grid.ColumnSpan="{Binding MessageColumnSpan}"
+                                                                         Classes="messageText"
+                                                                         Classes.statusBody="{Binding IsStatus}"
+                                                                         controls:MessageInlineRenderer.Segments="{Binding Segments}"
+                                                                         TextWrapping="Wrap" />
+                                                </Grid>
+                                            </Border>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
@@ -1568,7 +1595,7 @@
                                             </Grid>
 
                                             <Grid Grid.Row="1"
-                                                  RowDefinitions="Auto,Auto,Auto,Auto"
+                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto"
                                                   RowSpacing="10">
                                                 <Grid ColumnDefinitions="Auto,*,132"
                                                       ColumnSpacing="12"
@@ -1604,7 +1631,11 @@
                                                           Content="{Binding Strings[MinimizeToTray]}"
                                                           IsChecked="{Binding MinimizeToTrayEnabled}" />
 
-                                                <TextBlock Grid.Row="3"
+                                                <CheckBox Grid.Row="3"
+                                                          Content="{Binding Strings[ShowDaySeparators]}"
+                                                          IsChecked="{Binding ShowDaySeparators}" />
+
+                                                <TextBlock Grid.Row="4"
                                                            Margin="0,4,0,0"
                                                            HorizontalAlignment="Right"
                                                            Text="{Binding VersionText, StringFormat=QuasselGlow {0}}"

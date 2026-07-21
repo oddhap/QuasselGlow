@@ -27,7 +27,8 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             ThemeKey: "ember",
             ThemeModeKey: "dark",
             MinimizeToTray: true,
-            AutoReconnect: true);
+            AutoReconnect: true,
+            ShowDaySeparators: false);
 
         var saveResult = store.Save(expected);
         var loadResult = store.Load();
@@ -49,6 +50,7 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.Equal(expected.ThemeModeKey, actual.ThemeModeKey);
         Assert.True(actual.MinimizeToTray);
         Assert.True(actual.AutoReconnect);
+        Assert.False(actual.ShowDaySeparators);
     }
 
     [Fact]

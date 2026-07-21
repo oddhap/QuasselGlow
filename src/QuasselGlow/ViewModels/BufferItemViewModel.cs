@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Quassel.Client.Application.Text;
@@ -13,6 +14,8 @@ public sealed partial class BufferItemViewModel : ViewModelBase
 
     private readonly HashSet<long> _messageIds = [];
     private long _latestTopicMessageOrder = long.MinValue;
+    private bool _showDaySeparators = true;
+    private string _daySeparatorLanguageCode = "en_US";
 
     [ObservableProperty]
     private string _displayName;
@@ -93,6 +96,7 @@ public sealed partial class BufferItemViewModel : ViewModelBase
         var viewModel = new MessageItemViewModel(message);
         var insertAt = Messages.TakeWhile(item => item.MessageOrder < viewModel.MessageOrder).Count();
         Messages.Insert(insertAt, viewModel);
+        RefreshDaySeparators();
 
         LastMessagePreview = BuildPreview(viewModel);
         UpdateChannelTopic(message, viewModel.MessageOrder);
@@ -118,6 +122,13 @@ public sealed partial class BufferItemViewModel : ViewModelBase
         UnreadCount = 0;
         HasMentionAlert = false;
         HasPrivateMessageAlert = false;
+    }
+
+    public void ConfigureDaySeparators(bool showDaySeparators, string languageCode)
+    {
+        _showDaySeparators = showDaySeparators;
+        _daySeparatorLanguageCode = languageCode;
+        RefreshDaySeparators();
     }
 
     partial void OnUnreadCountChanged(int value)
@@ -240,5 +251,32 @@ public sealed partial class BufferItemViewModel : ViewModelBase
     {
         var content = message.LineText.Replace("\r", " ").Replace("\n", " ").Trim();
         return content.Length > 64 ? $"{content[..61]}..." : content;
+    }
+
+    private void RefreshDaySeparators()
+    {
+        var culture = GetDaySeparatorCulture();
+        for (var index = 0; index < Messages.Count; index++)
+        {
+            var message = Messages[index];
+            var localDate = message.Model.Timestamp.ToLocalTime().Date;
+            var previousDate = index > 0
+                ? Messages[index - 1].Model.Timestamp.ToLocalTime().Date
+                : localDate;
+            var isVisible = _showDaySeparators && index > 0 && localDate != previousDate;
+            message.SetDaySeparator(isVisible, localDate.ToString("D", culture));
+        }
+    }
+
+    private CultureInfo GetDaySeparatorCulture()
+    {
+        try
+        {
+            return CultureInfo.GetCultureInfo(_daySeparatorLanguageCode.Replace('_', '-'));
+        }
+        catch (CultureNotFoundException)
+        {
+            return CultureInfo.CurrentCulture;
+        }
     }
 }

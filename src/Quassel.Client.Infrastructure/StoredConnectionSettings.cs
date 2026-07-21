@@ -14,4 +14,5 @@ public sealed record StoredConnectionSettings(
     string ThemeKey = "",
     string ThemeModeKey = "",
     bool MinimizeToTray = false,
-    bool AutoReconnect = false);
+    bool AutoReconnect = false,
+    bool ShowDaySeparators = true);

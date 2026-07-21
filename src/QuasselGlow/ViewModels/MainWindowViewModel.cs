@@ -105,6 +105,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     [ObservableProperty]
     private bool _minimizeToTrayEnabled;
 
+    [ObservableProperty]
+    private bool _showDaySeparators = true;
+
     public MainWindowViewModel()
         : this(new QuasselSessionService(), new LocalConnectionSettingsStore())
     {
@@ -1003,6 +1006,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         SaveSettingsIfReady();
     }
 
+    partial void OnShowDaySeparatorsChanged(bool value)
+    {
+        ConfigureDaySeparatorsForAllBuffers();
+        SaveSettingsIfReady();
+    }
+
     partial void OnTrustInvalidCertificatesChanged(bool value)
     {
         SaveSettingsIfReady();
@@ -1224,6 +1233,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         }
 
         var created = new BufferItemViewModel(bufferInfo);
+        created.ConfigureDaySeparators(ShowDaySeparators, SelectedLanguageCode);
         _buffersById[bufferInfo.BufferId] = created;
         _composerHistoryByBuffer.TryAdd(bufferInfo.BufferId, new ComposerHistoryState());
         created.PropertyChanged += OnBufferPropertyChanged;
@@ -1455,6 +1465,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         SelectedThemeModeKey = settings.ThemeModeKey;
         MinimizeToTrayEnabled = settings.MinimizeToTray;
         AutoReconnect = settings.AutoReconnect;
+        ShowDaySeparators = settings.ShowDaySeparators;
     }
 
     private void SaveSettings()
@@ -1473,7 +1484,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             SelectedThemeKey,
             SelectedThemeModeKey,
             MinimizeToTrayEnabled,
-            AutoReconnect));
+            AutoReconnect,
+            ShowDaySeparators));
 
         ApplyConnectionSettingsSaveResult(result);
     }
@@ -1760,6 +1772,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     private void RefreshLocalizedText()
     {
+        ConfigureDaySeparatorsForAllBuffers();
         foreach (var network in Networks)
         {
             network.RefreshLocalizedText(_strings);
@@ -1804,6 +1817,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(SessionSummaryText));
         OnPropertyChanged(nameof(SelectedBufferSubtitleText));
         OnPropertyChanged(nameof(ShowSelectedBufferSubtitle));
+    }
+
+    private void ConfigureDaySeparatorsForAllBuffers()
+    {
+        foreach (var buffer in _buffersById.Values)
+        {
+            buffer.ConfigureDaySeparators(ShowDaySeparators, SelectedLanguageCode);
+        }
     }
 
     private void RaiseSelectionTextPropertiesChanged()

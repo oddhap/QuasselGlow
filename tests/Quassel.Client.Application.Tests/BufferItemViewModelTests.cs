@@ -121,6 +121,34 @@ public sealed class BufferItemViewModelTests
         Assert.Equal("+", viewModel.ChannelUsers[1].Prefix);
     }
 
+    [Fact]
+    public void AddMessage_WhenLocalDateChanges_ShowsDaySeparatorOnFirstMessageOfNewDay()
+    {
+        var bufferInfo = new QuasselBufferInfo(new BufferId(9), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var viewModel = new BufferItemViewModel(bufferInfo);
+        viewModel.ConfigureDaySeparators(true, "nb");
+
+        viewModel.AddMessage(CreateMessageAt(bufferInfo, new MsgId(9), "2026-03-28T23:59:00+01:00"), trackUnreadState: false);
+        viewModel.AddMessage(CreateMessageAt(bufferInfo, new MsgId(10), "2026-03-29T00:01:00+01:00"), trackUnreadState: false);
+
+        Assert.False(viewModel.Messages[0].IsDaySeparatorVisible);
+        Assert.True(viewModel.Messages[1].IsDaySeparatorVisible);
+        Assert.Contains("2026", viewModel.Messages[1].DaySeparatorText);
+    }
+
+    [Fact]
+    public void ConfigureDaySeparators_WhenDisabled_HidesExistingSeparator()
+    {
+        var bufferInfo = new QuasselBufferInfo(new BufferId(10), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var viewModel = new BufferItemViewModel(bufferInfo);
+        viewModel.AddMessage(CreateMessageAt(bufferInfo, new MsgId(11), "2026-03-28T23:59:00+01:00"), trackUnreadState: false);
+        viewModel.AddMessage(CreateMessageAt(bufferInfo, new MsgId(12), "2026-03-29T00:01:00+01:00"), trackUnreadState: false);
+
+        viewModel.ConfigureDaySeparators(false, "nb");
+
+        Assert.All(viewModel.Messages, message => Assert.False(message.IsDaySeparatorVisible));
+    }
+
     private static QuasselMessage CreateMessage(
         QuasselBufferInfo bufferInfo,
         MsgId messageId,
@@ -136,5 +164,17 @@ public sealed class BufferItemViewModelTests
             contents,
             "alice!user@example",
             flags);
+    }
+
+    private static QuasselMessage CreateMessageAt(QuasselBufferInfo bufferInfo, MsgId messageId, string timestamp)
+    {
+        return new QuasselMessage(
+            messageId,
+            DateTimeOffset.Parse(timestamp),
+            bufferInfo,
+            QuasselMessageType.Plain,
+            "hello there",
+            "alice!user@example",
+            QuasselMessageFlags.None);
     }
 }
