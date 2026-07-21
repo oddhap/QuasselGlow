@@ -23,4 +23,14 @@ public sealed class IrcFormattingCleanerTests
 
         Assert.Equal("Viktig melding og fargekode", actual);
     }
+
+    [Fact]
+    public void Clean_ConvertsUnknownC0ControlCharacterToVisibleControlPicture()
+    {
+        const string input = "\u0013";
+
+        var actual = IrcFormattingCleaner.Clean(input);
+
+        Assert.Equal("\u2413", actual);
+    }
 }

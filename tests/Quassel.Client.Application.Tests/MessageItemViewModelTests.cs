@@ -74,6 +74,16 @@ public sealed class MessageItemViewModelTests
         Assert.Equal("Netsplit between hub.one and hub.two. Users quit: alice, bob", viewModel.LineText);
     }
 
+    [Fact]
+    public void Constructor_ShowsUnknownControlCharacterAsVisibleControlPicture()
+    {
+        var viewModel = new MessageItemViewModel(CreateMessage("\u0013"));
+
+        Assert.Equal("\u2413", viewModel.LineText);
+        Assert.Single(viewModel.Segments);
+        Assert.Equal("\u2413", viewModel.Segments[0].Text);
+    }
+
     private static QuasselMessage CreateMessage(
         string contents,
         QuasselMessageType type = QuasselMessageType.Plain,

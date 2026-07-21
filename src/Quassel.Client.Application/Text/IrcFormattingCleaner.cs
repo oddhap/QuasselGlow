@@ -21,6 +21,7 @@ public static class IrcFormattingCleaner
                 case '\x02':
                 case '\x0F':
                 case '\x11':
+                case '\x12':
                 case '\x16':
                 case '\x1D':
                 case '\x1E':
@@ -33,7 +34,25 @@ public static class IrcFormattingCleaner
                     index = SkipHexColorParameters(input, index);
                     break;
                 default:
-                    if (char.IsControl(current) && current is not '\r' and not '\n' and not '\t')
+                    if (current is '\r' or '\n' or '\t')
+                    {
+                        builder.Append(current);
+                        break;
+                    }
+
+                    if (current < '\x20')
+                    {
+                        builder.Append((char)('\u2400' + current));
+                        break;
+                    }
+
+                    if (current == '\x7F')
+                    {
+                        builder.Append('\u2421');
+                        break;
+                    }
+
+                    if (char.IsControl(current))
                     {
                         break;
                     }
