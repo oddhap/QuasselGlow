@@ -136,11 +136,9 @@ Recent desktop polish includes persisted themes with dark mode, wallpaper-matche
 
 ## Recent Release Notes
 
-The `v0.2.11` update adds protocol heartbeat monitoring so QuasselGlow can detect a lost Quassel core connection instead of staying silently connected on a dead stream. A new connection preference lets users automatically reconnect after an active session is lost while still respecting manual disconnects.
+The `v0.2.13` update adds optional chat date separators, defaults the display language to the operating system, shows the app version in settings, and makes unknown IRC control characters visible instead of silently dropping them.
 
-This release also keeps the Quassel DataStream heartbeat timestamp compatible with Qt `QDateTime`, persists the new reconnect preference with the rest of the connection preferences, and expands regression coverage around heartbeat timeouts and reconnect behavior.
-
-A follow-up desktop polish change highlights user-list nick rows on hover so channel users are easier to scan before opening their context menu.
+This release also updates the project to .NET SDK 10.0.302, Avalonia 12.1.0, Microsoft.NET.Test.Sdk 18.8.1, and System.Security.Cryptography.ProtectedData 10.0.10.
 
 ## Notes
 
