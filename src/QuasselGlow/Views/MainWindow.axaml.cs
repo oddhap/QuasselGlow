@@ -434,6 +434,20 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void OnChannelUserPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control { DataContext: ChannelUserViewModel user } control
+            || _viewModel is null
+            || e.ClickCount != 2
+            || !e.GetCurrentPoint(control).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        _ = _viewModel.OpenPrivateChatCommand.ExecuteAsync(user);
+        e.Handled = true;
+    }
+
     private void OnComposerKeyDown(object? sender, KeyEventArgs e)
     {
         if (sender is not TextBox textBox || _viewModel is null || e.KeyModifiers != KeyModifiers.None)

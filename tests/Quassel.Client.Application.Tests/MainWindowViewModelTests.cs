@@ -717,6 +717,9 @@ public sealed class MainWindowViewModelTests
         var session = new FakeSessionService();
         var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
         var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(58), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
 
         Assert.True(viewModel.ShowUserListToggle);
 
@@ -726,6 +729,69 @@ public sealed class MainWindowViewModelTests
 
         viewModel.ToggleControlPanelCommand.Execute(null);
 
+        Assert.True(viewModel.ShowUserListToggle);
+    }
+
+    [Fact]
+    public void UserList_HidesInQueryAndRestoresWhenReturningToChannel()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(59), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var queryBuffer = new QuasselBufferInfo(new BufferId(60), new NetworkId(1), QuasselBufferType.Query, 0, "bob");
+
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer, queryBuffer], [new NetworkId(1)]));
+        viewModel.ToggleControlPanelCommand.Execute(null);
+
+        Assert.True(viewModel.IsControlPanelOpen);
+
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == queryBuffer.BufferId);
+
+        Assert.False(viewModel.IsControlPanelOpen);
+        Assert.False(viewModel.ShowUserListToggle);
+
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == channelBuffer.BufferId);
+
+        Assert.True(viewModel.IsControlPanelOpen);
+        Assert.False(viewModel.ShowUserListToggle);
+    }
+
+    [Fact]
+    public void UserList_RemainsHiddenAfterReturningToChannelWhenPreviouslyHidden()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(61), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var queryBuffer = new QuasselBufferInfo(new BufferId(62), new NetworkId(1), QuasselBufferType.Query, 0, "bob");
+
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer, queryBuffer], [new NetworkId(1)]));
+
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == queryBuffer.BufferId);
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == channelBuffer.BufferId);
+
+        Assert.False(viewModel.IsControlPanelOpen);
+        Assert.True(viewModel.ShowUserListToggle);
+    }
+
+    [Fact]
+    public void UserListToggle_NotifiesBindingWhenReturningToChannel()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(63), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var queryBuffer = new QuasselBufferInfo(new BufferId(64), new NetworkId(1), QuasselBufferType.Query, 0, "bob");
+        var changedProperties = new List<string?>();
+
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer, queryBuffer], [new NetworkId(1)]));
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == queryBuffer.BufferId);
+        viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        viewModel.SelectedBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.BufferInfo.BufferId == channelBuffer.BufferId);
+
+        Assert.Contains(nameof(MainWindowViewModel.ShowUserListToggle), changedProperties);
         Assert.True(viewModel.ShowUserListToggle);
     }
 
@@ -955,6 +1021,47 @@ public sealed class MainWindowViewModelTests
         Assert.Single(session.SentInputs);
         Assert.Equal(channelBuffer.BufferId, session.SentInputs[0].bufferInfo.BufferId);
         Assert.Equal("/mode #quassel +o bob", session.SentInputs[0].text);
+    }
+
+    [Fact]
+    public async Task OpenPrivateChat_ActivatesExistingQueryWithoutSendingCommand()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(60), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var queryBuffer = new QuasselBufferInfo(new BufferId(61), new NetworkId(1), QuasselBufferType.Query, 0, "Bob");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer, queryBuffer], [new NetworkId(1)]));
+
+        await viewModel.OpenPrivateChatCommand.ExecuteAsync(new ChannelUserViewModel(new QuasselChannelUser("bob", string.Empty)));
+
+        Assert.Equal(queryBuffer.BufferId, viewModel.SelectedBuffer?.BufferInfo.BufferId);
+        Assert.Empty(session.SentInputs);
+    }
+
+    [Fact]
+    public async Task OpenPrivateChat_CreatesAndActivatesNewQuery()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(62), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var queryBuffer = new QuasselBufferInfo(new BufferId(63), new NetworkId(1), QuasselBufferType.Query, 0, "bob");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer], [new NetworkId(1)]));
+
+        await viewModel.OpenPrivateChatCommand.ExecuteAsync(new ChannelUserViewModel(new QuasselChannelUser("bob", string.Empty)));
+
+        var sentInput = Assert.Single(session.SentInputs);
+        Assert.Equal(channelBuffer.BufferId, sentInput.bufferInfo.BufferId);
+        Assert.Equal("/query bob", sentInput.text);
+
+        session.EmitBufferInfo(queryBuffer);
+
+        Assert.Equal(queryBuffer.BufferId, viewModel.SelectedBuffer?.BufferInfo.BufferId);
     }
 
     [Fact]

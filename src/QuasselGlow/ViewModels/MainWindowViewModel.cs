@@ -27,6 +27,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly Dictionary<BufferId, ComposerHistoryState> _composerHistoryByBuffer = new();
     private readonly Dictionary<string, QuasselChannelState> _channelStatesByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _pendingChannelSwitchKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _pendingQuerySwitchKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _suppressedChannelBufferKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<BufferId> _pendingDeletedChannelBuffers = [];
     private readonly Dictionary<LocalUserStateFailureKind, string> _localUserStateFailureKeys = new();
@@ -49,6 +50,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private readonly ObservableCollection<AppDisplayOption> _supportedThemeModes = [];
     private bool _canAcknowledgeSelectedBuffer = true;
     private bool _isApplyingNickAutocomplete;
+    private bool _isUpdatingUserListForBufferSwitch;
+    private bool? _userListWasOpenBeforeNonChannel;
     private NickAutocompleteState? _nickAutocompleteState;
 
     [ObservableProperty]
@@ -259,6 +262,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
                 return;
             }
 
+            var previousBufferSupportedUserList = _selectedBuffer?.BufferInfo.Type == QuasselBufferType.Channel;
+
             if (_selectedBuffer is not null)
             {
                 _selectedBuffer.IsSelected = false;
@@ -266,6 +271,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
             if (SetProperty(ref _selectedBuffer, value))
             {
+                UpdateUserListVisibilityForBufferSwitch(previousBufferSupportedUserList);
+
                 if (_selectedBuffer is not null)
                 {
                     _selectedBuffer.IsSelected = true;
@@ -399,7 +406,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public bool UseOverlayDismissForUserList => IsCompactLayout;
 
-    public bool ShowUserListToggle => !IsControlPanelOpen;
+    public bool ShowUserListToggle => SelectedBufferSupportsUserList && !IsControlPanelOpen;
 
     public void SetCompactLayout(bool isCompact)
     {
@@ -776,6 +783,45 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     }
 
     [RelayCommand]
+    private async Task OpenPrivateChatAsync(ChannelUserViewModel? user)
+    {
+        if (!TryGetSelectedChannelBuffer(out var channelBuffer)
+            || user is null
+            || string.IsNullOrWhiteSpace(user.Nick))
+        {
+            return;
+        }
+
+        var nick = user.Nick.Trim();
+        var existingQuery = _buffersById.Values.FirstOrDefault(buffer =>
+            buffer.BufferInfo.Type == QuasselBufferType.Query
+            && buffer.BufferInfo.NetworkId == channelBuffer.NetworkId
+            && string.Equals(buffer.BufferInfo.BufferName, nick, StringComparison.OrdinalIgnoreCase));
+
+        if (existingQuery is not null)
+        {
+            SelectedBuffer = existingQuery;
+            return;
+        }
+
+        var queryKey = BuildBufferNameKey(channelBuffer.NetworkId, nick);
+        if (!_pendingQuerySwitchKeys.Add(queryKey))
+        {
+            return;
+        }
+
+        try
+        {
+            await _session.SendInputAsync(channelBuffer, $"/query {nick}").ConfigureAwait(false);
+        }
+        catch
+        {
+            _pendingQuerySwitchKeys.Remove(queryKey);
+            throw;
+        }
+    }
+
+    [RelayCommand]
     private Task RemoveOpFromChannelUserAsync(ChannelUserViewModel? user)
     {
         return SendModeChangeForChannelUserAsync(user, "-o");
@@ -1021,7 +1067,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     partial void OnIsControlPanelOpenChanged(bool value)
     {
         OnPropertyChanged(nameof(ShowUserListToggle));
-        SaveSettingsIfReady();
+        if (!_isUpdatingUserListForBufferSwitch)
+        {
+            SaveSettingsIfReady();
+        }
     }
 
     partial void OnIsOverviewOpenChanged(bool value)
@@ -1129,6 +1178,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
                 _composerHistoryByBuffer.Clear();
                 _channelStatesByKey.Clear();
                 _pendingChannelSwitchKeys.Clear();
+                _pendingQuerySwitchKeys.Clear();
                 SelectedBuffer = null;
                 OnPropertyChanged(nameof(SessionSummaryText));
             }
@@ -1168,6 +1218,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             _composerHistoryByBuffer.Clear();
             _channelStatesByKey.Clear();
             _pendingChannelSwitchKeys.Clear();
+            _pendingQuerySwitchKeys.Clear();
             _pendingDeletedChannelBuffers.Clear();
 
             foreach (var networkId in sessionState.Networks)
@@ -1240,7 +1291,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         ApplyCachedChannelState(created);
         network.UpsertBuffer(created);
 
-        if (ShouldSelectBufferAfterJoin(bufferInfo))
+        if (ShouldSelectBufferAfterRequestedSwitch(bufferInfo))
         {
             SelectedBuffer = created;
         }
@@ -1795,6 +1846,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(SelectedNetworkStatusText));
         OnPropertyChanged(nameof(SelectedNickText));
         OnPropertyChanged(nameof(SelectedBufferSupportsUserList));
+        OnPropertyChanged(nameof(ShowUserListToggle));
         OnPropertyChanged(nameof(SelectedChannelUsers));
         OnPropertyChanged(nameof(ShowSelectedChannelUsers));
         OnPropertyChanged(nameof(ShowSelectedChannelUsersEmptyState));
@@ -1837,6 +1889,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(SelectedNetworkStatusText));
         OnPropertyChanged(nameof(SelectedNickText));
         OnPropertyChanged(nameof(SelectedBufferSupportsUserList));
+        OnPropertyChanged(nameof(ShowUserListToggle));
         OnPropertyChanged(nameof(SelectedChannelUsers));
         OnPropertyChanged(nameof(ShowSelectedChannelUsers));
         OnPropertyChanged(nameof(ShowSelectedChannelUsersEmptyState));
@@ -1849,6 +1902,40 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(ControlPanelBufferPreviewText));
         OnPropertyChanged(nameof(ComposerContextText));
         OnPropertyChanged(nameof(TrayToolTipText));
+    }
+
+    private void UpdateUserListVisibilityForBufferSwitch(bool previousBufferSupportedUserList)
+    {
+        var selectedBufferSupportsUserList = _selectedBuffer?.BufferInfo.Type == QuasselBufferType.Channel;
+        if (!selectedBufferSupportsUserList)
+        {
+            if (previousBufferSupportedUserList || _userListWasOpenBeforeNonChannel is null)
+            {
+                _userListWasOpenBeforeNonChannel = IsControlPanelOpen;
+            }
+
+            SetAutomaticUserListVisibility(false);
+            return;
+        }
+
+        if (!previousBufferSupportedUserList && _userListWasOpenBeforeNonChannel is bool wasOpen)
+        {
+            _userListWasOpenBeforeNonChannel = null;
+            SetAutomaticUserListVisibility(wasOpen);
+        }
+    }
+
+    private void SetAutomaticUserListVisibility(bool isOpen)
+    {
+        _isUpdatingUserListForBufferSwitch = true;
+        try
+        {
+            IsControlPanelOpen = isOpen;
+        }
+        finally
+        {
+            _isUpdatingUserListForBufferSwitch = false;
+        }
     }
 
     private void NotifyCommandState()
@@ -2126,7 +2213,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     private static string BuildChannelStateKey(NetworkId networkId, string channelName)
     {
-        return $"{networkId.Value}/{channelName.Trim()}";
+        return BuildBufferNameKey(networkId, channelName);
+    }
+
+    private static string BuildBufferNameKey(NetworkId networkId, string bufferName)
+    {
+        return $"{networkId.Value}/{bufferName.Trim()}";
     }
 
     private void SuppressChannelBuffer(NetworkId networkId, string channelName)
@@ -2139,14 +2231,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         _suppressedChannelBufferKeys.Add(BuildChannelStateKey(networkId, channelName));
     }
 
-    private bool ShouldSelectBufferAfterJoin(QuasselBufferInfo bufferInfo)
+    private bool ShouldSelectBufferAfterRequestedSwitch(QuasselBufferInfo bufferInfo)
     {
-        if (bufferInfo.Type != QuasselBufferType.Channel || string.IsNullOrWhiteSpace(bufferInfo.BufferName))
+        if (string.IsNullOrWhiteSpace(bufferInfo.BufferName))
         {
             return false;
         }
 
-        return _pendingChannelSwitchKeys.Remove(BuildChannelStateKey(bufferInfo.NetworkId, bufferInfo.BufferName));
+        var key = BuildBufferNameKey(bufferInfo.NetworkId, bufferInfo.BufferName);
+        return bufferInfo.Type switch
+        {
+            QuasselBufferType.Channel => _pendingChannelSwitchKeys.Remove(key),
+            QuasselBufferType.Query => _pendingQuerySwitchKeys.Remove(key),
+            _ => false
+        };
     }
 
     private bool ShouldSuppressBuffer(QuasselBufferInfo bufferInfo)
