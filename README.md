@@ -114,7 +114,7 @@ dotnet test Quassel.slnx
 
 This publishes self-contained release builds for `win-x64`, `linux-x64`, `linux-arm64`, `osx-x64`, and `osx-arm64` into `.artifacts/releases/<version>/`, writes `SHA256SUMS.txt`, creates platform archives, and seeds a `RELEASE_NOTES.md` file if one does not already exist.
 
-The release version is centralized in `Directory.Build.props`. If you omit `-Version`, the publish script will use that shared `VersionPrefix`. On macOS the script also emits a signed `QuasselGlow.app` bundle, a zip that contains the app bundle, and a `.dmg`.
+The release version is centralized in `Directory.Build.props`. If you omit `-Version`, the publish script will use that shared `VersionPrefix`. On macOS the script emits a signed `QuasselGlow.app` bundle inside a zip archive.
 
 ### Install or update the local Linux app
 

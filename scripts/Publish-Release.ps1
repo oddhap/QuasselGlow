@@ -9,8 +9,6 @@ param(
 
     [switch]$SkipValidation,
 
-    [switch]$SkipMacDmg,
-
     [switch]$Force
 )
 
@@ -345,51 +343,6 @@ function Set-MacAppBundleAdHocSignature {
     return $true
 }
 
-function New-MacDmg {
-    param(
-        [string]$AppBundlePath,
-        [string]$DmgPath,
-        [string]$VolumeName,
-        [string]$TemporaryDirectory
-    )
-
-    if (-not (Test-IsMacOSHost)) {
-        Write-Warning "Skipping DMG creation for $AppBundlePath because the host OS is not macOS."
-        return $false
-    }
-
-    if (-not (Test-CommandAvailable -Name "hdiutil")) {
-        Write-Warning "Skipping DMG creation because hdiutil is not available."
-        return $false
-    }
-
-    $dmgStageDirectory = Join-Path $TemporaryDirectory "dmg"
-    New-Item -ItemType Directory -Path $dmgStageDirectory -Force | Out-Null
-    Copy-Item -LiteralPath $AppBundlePath -Destination $dmgStageDirectory -Recurse -Force
-
-    try {
-        New-Item -ItemType SymbolicLink -Path (Join-Path $dmgStageDirectory "Applications") -Target "/Applications" -ErrorAction Stop | Out-Null
-    }
-    catch {
-        Write-Warning "Could not create /Applications shortcut inside DMG staging folder. Continuing without it."
-    }
-
-    if (Test-Path $DmgPath) {
-        Remove-Item -LiteralPath $DmgPath -Force
-    }
-
-    Invoke-External -FilePath "hdiutil" -Arguments @(
-        "create",
-        "-volname", $VolumeName,
-        "-srcfolder", $dmgStageDirectory,
-        "-ov",
-        "-format", "UDZO",
-        $DmgPath
-    )
-
-    return $true
-}
-
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $centralizedVersionTag = Get-CentralizedVersionTag -RepoRoot $repoRoot
 $versionTag = if ([string]::IsNullOrWhiteSpace($Version)) {
@@ -449,7 +402,6 @@ Release summary goes here.
 
 - Windows portable zip: single-file self-contained executable
 - macOS zip: QuasselGlow.app bundle
-- macOS dmg: created automatically when packaging on macOS
 
 ## Validation
 
@@ -490,19 +442,6 @@ foreach ($runtimeIdentifier in $RuntimeIdentifiers) {
         $appArchivePath = Join-Path $releaseRoot "$appName-$versionTag-$runtimeIdentifier-app.zip"
         New-ZipArchiveFromPath -SourcePath $appBundlePath -ArchivePath $appArchivePath
         $generatedArtifacts.Add($appArchivePath) | Out-Null
-
-        if (-not $SkipMacDmg) {
-            $dmgPath = Join-Path $releaseRoot "$appName-$versionTag-$runtimeIdentifier.dmg"
-            $dmgCreated = New-MacDmg `
-                -AppBundlePath $appBundlePath `
-                -DmgPath $dmgPath `
-                -VolumeName $appName `
-                -TemporaryDirectory (Join-Path $stagingRoot "$runtimeIdentifier-dmg")
-
-            if ($dmgCreated) {
-                $generatedArtifacts.Add($dmgPath) | Out-Null
-            }
-        }
     }
     else {
         $archivePath = Join-Path $releaseRoot "$appName-$versionTag-$runtimeIdentifier.zip"
