@@ -902,6 +902,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     }
 
     [RelayCommand]
+    private async Task CloseQueryBufferAsync(BufferItemViewModel? buffer)
+    {
+        if (buffer is null || buffer.BufferInfo.Type != QuasselBufferType.Query)
+        {
+            return;
+        }
+
+        await _session.DeleteBufferAsync(buffer.BufferInfo).ConfigureAwait(false);
+        RunOnUiThread(() => RemoveBuffer(buffer));
+    }
+
+    [RelayCommand]
     private void SelectBuffer(BufferItemViewModel? buffer)
     {
         SelectedBuffer = buffer;

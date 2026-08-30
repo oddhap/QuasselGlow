@@ -1149,6 +1149,10 @@
                                                                               Command="{Binding #RootWindow.DataContext.WhoisBufferCommand}"
                                                                               CommandParameter="{Binding}"
                                                                               IsVisible="{Binding IsQuery}" />
+                                                                    <MenuItem Header="{Binding #RootWindow.DataContext.Strings[CloseChat]}"
+                                                                              Command="{Binding #RootWindow.DataContext.CloseQueryBufferCommand}"
+                                                                              CommandParameter="{Binding}"
+                                                                              IsVisible="{Binding IsQuery}" />
                                                                 </ContextMenu>
                                                             </Button.ContextMenu>
                                                             <Grid ColumnDefinitions="Auto,*,Auto">

@@ -1263,6 +1263,26 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task CloseQueryBuffer_DeletesClickedQueryAndRemovesItFromList()
+    {
+        var session = new FakeSessionService();
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
+        var channelBuffer = new QuasselBufferInfo(new BufferId(10), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var queryBuffer = new QuasselBufferInfo(new BufferId(11), new NetworkId(1), QuasselBufferType.Query, 0, "bob");
+
+        session.EmitConnectionState(QuasselConnectionState.Ready, "Connected");
+        session.EmitSessionState(new QuasselSessionState([], [channelBuffer, queryBuffer], [new NetworkId(1)]));
+        var targetBuffer = viewModel.Networks.Single().Buffers.Single(buffer => buffer.DisplayName == "bob");
+
+        await viewModel.CloseQueryBufferCommand.ExecuteAsync(targetBuffer);
+
+        Assert.Single(session.DeletedBuffers);
+        Assert.Equal(queryBuffer.BufferId, session.DeletedBuffers[0].BufferId);
+        Assert.DoesNotContain(viewModel.Networks.Single().Buffers, buffer => buffer.DisplayName == "bob");
+    }
+
+    [Fact]
     public void MarkBufferAsRead_ClearsUnreadStateOnClickedBuffer()
     {
         var session = new FakeSessionService();
