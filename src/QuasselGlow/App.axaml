@@ -61,15 +61,15 @@
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{StaticResource ShellPanel}"/>
             <Setter Property="BorderBrush" Value="{StaticResource ShellBorder}"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="Padding" Value="9,7"/>
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button">
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="Padding" Value="11,7"/>
         </Style>
         <Style Selector="CheckBox">
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>

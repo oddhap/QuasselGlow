@@ -483,22 +483,6 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void OnThemeEditorPopupClosed(object? sender, EventArgs e)
-    {
-        if (_viewModel?.IsThemeEditorOpen == true)
-        {
-            _viewModel.CloseThemeEditorCommand.Execute(null);
-        }
-    }
-
-    private void OnConnectionEditorPopupClosed(object? sender, EventArgs e)
-    {
-        if (_viewModel?.IsConnectionEditorOpen == true)
-        {
-            _viewModel.CloseConnectionEditorCommand.Execute(null);
-        }
-    }
-
     private void QueueFocusComposer()
     {
         Dispatcher.UIThread.Post(() =>
@@ -516,17 +500,7 @@ public partial class MainWindow : Window
 
     private TextBox? GetActiveComposerTextBox()
     {
-        if (MainComposerTextBox.IsVisible)
-        {
-            return MainComposerTextBox;
-        }
-
-        if (CompactComposerTextBox.IsVisible)
-        {
-            return CompactComposerTextBox;
-        }
-
-        return null;
+        return MainComposerTextBox.IsVisible ? MainComposerTextBox : null;
     }
 
     private void UpdateWindowChrome(WindowState state)

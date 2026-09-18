@@ -6,6 +6,9 @@ The project aims to offer a modern desktop experience inspired by classic IRC cl
 
 ## Screenshots
 
+> The screenshots below show the previous layout. Captures for the redesigned
+> interface are pending.
+
 ### Light Theme
 
 ![QuasselGlow light overview](docs/screenshots/light-overview.png)
@@ -34,11 +37,24 @@ QuasselGlow is an early-stage project. The current build includes:
 - Quassel-style per-buffer input history and draft recall
 - Nick autocomplete in channels with repeated `Tab` cycling through matches
 - Automatic reconnect to the remembered server on startup
-- A custom desktop UI built with Avalonia
+- A flat, classic three-column desktop UI built with Avalonia
 - Local connection settings storage
 - Theme selection, tray support, pinned user list, and localized UI labels
 - Language selection covering the full locale list shipped by the official Quassel client
 - Avalonia 12-based desktop UI packaging with updated placeholder APIs and macOS-specific custom title bar handling
+
+## Desktop UI
+
+The desktop client uses a flat, classic IRC workbench layout:
+
+- A thin app-rendered title bar with the brand, the active buffer name and the window controls.
+- A status strip directly under the title bar with the connection state, detail text, session summary and the connection actions.
+- A three-column work area: network/buffer tree, flat message log and nick list.
+- A single-line composer pinned to the bottom.
+
+The redesign replaces the earlier card-and-gradient dashboard with flat surfaces, a single interactive accent colour and 6–7 px corner radii. All existing behaviour, commands, context menus, alert badges and themes are preserved.
+
+See [docs/GUI_REDESIGN.md](docs/GUI_REDESIGN.md) for the full design notes and [docs/gui-proposals.html](docs/gui-proposals.html) for the design directions that were considered.
 
 ## Tech Stack
 
