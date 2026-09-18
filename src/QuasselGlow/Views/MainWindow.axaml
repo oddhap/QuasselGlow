@@ -1055,9 +1055,12 @@
                                       SelectedValue="{Binding SelectedLanguageCode}" />
                         </Grid>
 
-                        <CheckBox Grid.Row="2"
-                                  Content="{Binding Strings[MinimizeToTray]}"
-                                  IsChecked="{Binding MinimizeToTrayEnabled}" />
+                        <StackPanel Grid.Row="2" Spacing="6">
+                            <CheckBox Content="{Binding Strings[MinimizeToTray]}"
+                                      IsChecked="{Binding MinimizeToTrayEnabled}" />
+                            <CheckBox Content="{Binding Strings[UseClassicLayout]}"
+                                      IsChecked="{Binding UseClassicLayout}" />
+                        </StackPanel>
 
                         <CheckBox Grid.Row="3"
                                   Content="{Binding Strings[ShowDaySeparators]}"

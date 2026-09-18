@@ -1,9 +1,12 @@
+using System.ComponentModel;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using System.Linq;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using QuasselGlow.Appearance;
 using QuasselGlow.ViewModels;
 using QuasselGlow.Views;
@@ -13,6 +16,9 @@ namespace QuasselGlow;
 public partial class App : Avalonia.Application
 {
     private readonly WallpaperPaletteProvider _wallpaperPaletteProvider = new();
+    private MainWindowViewModel? _mainWindowViewModel;
+    private MainWindowBase? _mainWindow;
+    private bool _isSwitchingLayout;
 
     public static App? CurrentApp => Application.Current as App;
 
@@ -25,15 +31,84 @@ public partial class App : Avalonia.Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var mainWindowViewModel = new MainWindowViewModel();
-            ApplyAppearance(mainWindowViewModel.SelectedThemeKey, mainWindowViewModel.SelectedThemeModeKey);
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = mainWindowViewModel,
-            };
+            _mainWindowViewModel = new MainWindowViewModel();
+            ApplyAppearance(_mainWindowViewModel.SelectedThemeKey, _mainWindowViewModel.SelectedThemeModeKey);
+            _mainWindowViewModel.PropertyChanged += OnMainWindowViewModelPropertyChanged;
+
+            _mainWindow = CreateMainWindow(_mainWindowViewModel.UseClassicLayout);
+            _mainWindow.DataContext = _mainWindowViewModel;
+            desktop.MainWindow = _mainWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static MainWindowBase CreateMainWindow(bool useClassicLayout)
+    {
+        return useClassicLayout ? new ClassicMainWindow() : new MainWindow();
+    }
+
+    private void OnMainWindowViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MainWindowViewModel.UseClassicLayout))
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(SwitchLayoutIfNeeded, DispatcherPriority.Background);
+    }
+
+    private void SwitchLayoutIfNeeded()
+    {
+        if (_isSwitchingLayout
+            || _mainWindowViewModel is null
+            || ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return;
+        }
+
+        var useClassicLayout = _mainWindowViewModel.UseClassicLayout;
+        var expectedType = useClassicLayout ? typeof(ClassicMainWindow) : typeof(MainWindow);
+        if (_mainWindow is not null && _mainWindow.GetType() == expectedType)
+        {
+            return;
+        }
+
+        _isSwitchingLayout = true;
+        try
+        {
+            var oldWindow = _mainWindow;
+            var newWindow = CreateMainWindow(useClassicLayout);
+            newWindow.DataContext = _mainWindowViewModel;
+
+            if (oldWindow is not null)
+            {
+                newWindow.WindowStartupLocation = WindowStartupLocation.Manual;
+                newWindow.Width = oldWindow.Width;
+                newWindow.Height = oldWindow.Height;
+            }
+
+            _mainWindow = newWindow;
+            desktop.MainWindow = newWindow;
+            newWindow.Show();
+
+            if (oldWindow is not null)
+            {
+                newWindow.Position = oldWindow.Position;
+
+                if (oldWindow.WindowState == WindowState.Maximized)
+                {
+                    newWindow.WindowState = WindowState.Maximized;
+                }
+
+                oldWindow.SuppressViewModelDispose = true;
+                oldWindow.Close();
+            }
+        }
+        finally
+        {
+            _isSwitchingLayout = false;
+        }
     }
 
     public void ApplyAppearance(string? themeKey, string? modeKey)

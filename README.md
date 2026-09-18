@@ -54,6 +54,8 @@ The desktop client uses a flat, classic IRC workbench layout:
 
 The redesign replaces the earlier card-and-gradient dashboard with flat surfaces, a single interactive accent colour and 6–7 px corner radii. All existing behaviour, commands, context menus, alert badges and themes are preserved.
 
+The earlier card-based layout is still available. The **Classic interface** toggle in Settings switches between the flat and classic layouts live, without restarting or dropping the Quassel core session, and the classic layout is the default for existing installations.
+
 See [docs/GUI_REDESIGN.md](docs/GUI_REDESIGN.md) for the full design notes and [docs/gui-proposals.html](docs/gui-proposals.html) for the design directions that were considered.
 
 ## Tech Stack

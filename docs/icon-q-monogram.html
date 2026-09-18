@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuasselGlow – Q monogram, light colourways</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #e9ecef;
+    --panel: #ffffff;
+    --ink: #1b2430;
+    --ink-soft: #5d6b7a;
+    --line: #d5dae0;
+    --chip: #f1f4f8;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  html[data-mode="dark"] {
+    --bg: #0b0f14;
+    --panel: #12171e;
+    --ink: #e8edf2;
+    --ink-soft: #9aa8b6;
+    --line: #262d36;
+    --chip: #0f141a;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    padding: 30px 26px 70px;
+    -webkit-font-smoothing: antialiased;
+    transition: background .18s ease, color .18s ease;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  header h1 { font-size: 23px; letter-spacing: -.01em; }
+  header p { color: var(--ink-soft); margin-top: 8px; font-size: 14px; line-height: 1.6; max-width: 800px; }
+
+  .controls { display: flex; gap: 10px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
+  .ghost {
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft);
+    border-radius: 999px; padding: 8px 15px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft); font-weight: 600; }
+  .toggle input { width: 15px; height: 15px; accent-color: #2F6FD0; }
+  .hint { font-size: 12.5px; color: var(--ink-soft); }
+
+  /* dock preview */
+  .dock {
+    margin-top: 26px; border: 1px solid var(--line); border-radius: 16px; padding: 22px;
+    display: flex; gap: 18px; align-items: flex-end; justify-content: center;
+    background:
+      radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,.55), rgba(255,255,255,0) 60%),
+      linear-gradient(135deg, #eef1f4, #dfe5ea);
+  }
+  html[data-mode="dark"] .dock {
+    background:
+      radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,.06), rgba(255,255,255,0) 60%),
+      linear-gradient(135deg, #12171e, #0b0f14);
+  }
+  .dock figure { display: grid; gap: 8px; justify-items: center; }
+  .dock figcaption { font-size: 10.5px; color: var(--ink-soft); font-family: var(--mono); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; margin-top: 26px; }
+  .con { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .con .meta { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .con h2 { font-size: 15px; }
+  .con code { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); }
+  .showcase { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+  .ladder { display: flex; align-items: flex-end; gap: 12px; }
+  .ladder figure { display: grid; gap: 6px; justify-items: center; }
+  .ladder figcaption { font-size: 10px; color: var(--ink-soft); font-family: var(--mono); }
+  .mono-wrap { padding-left: 16px; border-left: 1px solid var(--line); display: grid; gap: 6px; justify-items: center; }
+  .mono-wrap figcaption { font-size: 10px; color: var(--ink-soft); font-family: var(--mono); }
+
+  .ic { display: block; }
+  .ic.glowy use { filter: drop-shadow(0 0 14px currentColor); }
+  .ic.mono { color: var(--ink); }
+
+  footer { margin-top: 30px; font-size: 12.5px; color: var(--ink-soft); line-height: 1.75; }
+  footer code { font-family: var(--mono); font-size: 11.5px; background: var(--chip); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="g-q" viewBox="0 0 512 512">
+      <circle cx="252" cy="238" r="118" fill="none" stroke="currentColor" stroke-width="40"/>
+      <line x1="312" y1="298" x2="388" y2="378" stroke="currentColor" stroke-width="40" stroke-linecap="round"/>
+      <circle cx="252" cy="238" r="40" fill="currentColor"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header>
+    <h1>Q monogram — light colourways</h1>
+    <p>The Q monogram from the proposal, recoloured into lighter, softer schemes. Each tile pairs a pale squircle with a deeper tone of the same hue for the glyph, so contrast survives the drop to 16 px. Hex values are shown so you can pick a direction.</p>
+    <div class="controls">
+      <button class="ghost" id="modeBtn">Dark mode</button>
+      <label class="toggle"><input type="checkbox" id="glowChk"> Add glow</label>
+      <span class="hint">Glow mirrors the "Glow" name but should be subtle at small sizes.</span>
+    </div>
+  </header>
+
+  <div class="dock" id="dock"></div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    <p><b>Notes.</b> Light squircles read well in a light dock and also stand out on a dark desktop, so a single light master can cover both.</p>
+    <p>If you want a true dark-dock master as well, the same hues work inverted: keep the glyph colour as the squircle fill and use a near-white glyph.</p>
+    <p>Before shipping, each colourway still needs the full PNG ladder <code>16 32 64 128 256 512</code>, a monochrome bar/tray variant, and a hand-tuned 16 px pass.</p>
+  </footer>
+</div>
+
+<script>
+  var SCHEMES = [
+    { name: 'Sand',      bg: '#F6E7C6', fg: '#A9761A' },
+    { name: 'Butter',    bg: '#FBF0C4', fg: '#8A6E0B' },
+    { name: 'Peach',     bg: '#FCE3D6', fg: '#C0542A' },
+    { name: 'Rose',      bg: '#FBE0EC', fg: '#B23C6E' },
+    { name: 'Lilac',     bg: '#E7E2FB', fg: '#5B4BC4' },
+    { name: 'Sky',       bg: '#DCE9FB', fg: '#2F6FD0' },
+    { name: 'Aqua',      bg: '#D5F0F0', fg: '#0E7C7B' },
+    { name: 'Mint',      bg: '#DAF1E4', fg: '#1E7A52' },
+    { name: 'Mist',      bg: '#E9EEF3', fg: '#41566B' },
+    { name: 'Porcelain', bg: '#FFFFFF', fg: '#2F6FD0' }
+  ];
+
+  var glyph = document.getElementById('g-q');
+
+  function appIcon(size, bg, fg) {
+    return '<svg class="ic" viewBox="0 0 512 512" width="' + size + '" height="' + size + '" style="color:' + fg + '">' +
+             '<rect x="48" y="48" width="416" height="416" rx="108" fill="' + bg + '" stroke="rgba(15,20,26,0.10)" stroke-width="2"/>' +
+             '<use href="#g-q"></use>' +
+           '</svg>';
+  }
+
+  function monoIcon(size) {
+    return '<svg class="ic mono" viewBox="0 0 512 512" width="' + size + '" height="' + size + '">' +
+             '<use href="#g-q"></use>' +
+           '</svg>';
+  }
+
+  // Dock preview: use a few schemes at realistic sizes.
+  var dockSel = [0, 2, 4, 5, 7];
+  document.getElementById('dock').innerHTML = dockSel.map(function (i) {
+    var s = SCHEMES[i];
+    return '<figure>' + appIcon(84, s.bg, s.fg) + '<figcaption>' + s.name.toLowerCase() + '</figcaption></figure>';
+  }).join('');
+
+  // Colourway cards.
+  document.getElementById('grid').innerHTML = SCHEMES.map(function (s) {
+    return '<article class="con">' +
+      '<div class="meta"><h2>' + s.name + '</h2><code>' + s.bg + ' &middot; ' + s.fg + '</code></div>' +
+      '<div class="showcase">' +
+        '<figure style="display:grid;gap:6px;justify-items:center;margin:0">' +
+          appIcon(120, s.bg, s.fg) +
+          '<figcaption style="font-size:10px;color:var(--ink-soft);font-family:var(--mono)">120</figcaption>' +
+        '</figure>' +
+        '<div class="ladder">' +
+          '<figure>' + appIcon(48, s.bg, s.fg) + '<figcaption>48</figcaption></figure>' +
+          '<figure>' + appIcon(32, s.bg, s.fg) + '<figcaption>32</figcaption></figure>' +
+          '<figure>' + appIcon(16, s.bg, s.fg) + '<figcaption>16</figcaption></figure>' +
+        '</div>' +
+        '<div class="mono-wrap">' + monoIcon(40) + '<figcaption>mono</figcaption></div>' +
+      '</div>' +
+    '</article>';
+  }).join('');
+
+  var glowChk = document.getElementById('glowChk');
+  glowChk.addEventListener('change', function () {
+    document.querySelectorAll('svg.ic').forEach(function (svg) {
+      svg.classList.toggle('glowy', glowChk.checked && !svg.classList.contains('mono'));
+    });
+  });
+
+  var modeBtn = document.getElementById('modeBtn');
+  modeBtn.addEventListener('click', function () {
+    var dark = document.documentElement.dataset.mode === 'dark';
+    document.documentElement.dataset.mode = dark ? 'light' : 'dark';
+    modeBtn.textContent = dark ? 'Dark mode' : 'Light mode';
+  });
+</script>
+</body>
+</html>

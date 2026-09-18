@@ -1,0 +1,727 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Platform;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using QuasselGlow.Platform;
+using QuasselGlow.ViewModels;
+
+namespace QuasselGlow.Views;
+
+public abstract class MainWindowBase : Window
+{
+    private const double CompactLayoutWidthThreshold = 1180;
+    private const double LowResolutionHeightThreshold = 820;
+    private const int DeferredScrollQuietPeriodMs = 120;
+    public bool IsMacOsPlatform { get; } = OperatingSystem.IsMacOS();
+    public bool IsNonMacOsPlatform => !OperatingSystem.IsMacOS();
+    private MainWindowViewModel? _viewModel;
+    private BufferItemViewModel? _observedBuffer;
+    private ScrollViewer? _chatScrollHost;
+    private TrayIcon? _trayIcon;
+    private NativeMenuItem? _trayShowItem;
+    private NativeMenuItem? _trayQuitItem;
+    private bool _isAutoScrolling;
+    private bool _stickToBottom = true;
+    private bool _isHidingToTray;
+    private bool _isHiddenToTray;
+    private int _autoScrollRequestId;
+    private int _deferredScrollRequestId;
+
+    protected abstract ListBox ActiveChatListBox { get; }
+
+    protected abstract Canvas MaximizeGlyphCanvas { get; }
+
+    protected abstract Canvas RestoreGlyphCanvas { get; }
+
+    internal bool SuppressViewModelDispose { get; set; }
+
+    protected abstract TextBox? ResolveComposerTextBox();
+
+    protected void InitializeWindow()
+    {
+        ConfigurePlatformWindowChrome();
+        AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+        DataContextChanged += OnDataContextChanged;
+        Opened += OnOpened;
+        SizeChanged += OnWindowSizeChanged;
+        Activated += OnActivated;
+        Deactivated += OnDeactivated;
+        Closed += OnClosed;
+        AttachToViewModel(DataContext as MainWindowViewModel);
+    }
+
+    private void ConfigurePlatformWindowChrome()
+    {
+        ExtendClientAreaToDecorationsHint = true;
+
+        // Keep native resize borders where they are useful, but leave the title
+        // bar and caption buttons to the app-rendered chrome.
+        WindowDecorations = OperatingSystem.IsLinux()
+            ? WindowDecorations.None
+            : WindowDecorations.BorderOnly;
+    }
+
+    private void OnOpened(object? sender, EventArgs e)
+    {
+        AttachChatScrollHost();
+        EnsureTrayIcon();
+        UpdateTrayState();
+        UpdateWindowChrome(WindowState);
+        UpdateResponsiveLayout();
+        _viewModel?.SetForegroundState(true);
+        _viewModel?.RefreshAppearance();
+        QueueFocusComposer();
+    }
+
+    private void OnActivated(object? sender, EventArgs e)
+    {
+        _viewModel?.SetForegroundState(true);
+        _viewModel?.RefreshAppearance();
+        QueueFocusComposer();
+    }
+
+    private void OnDeactivated(object? sender, EventArgs e)
+    {
+        if (!_isHidingToTray)
+        {
+            _viewModel?.SetForegroundState(false);
+        }
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        AttachToViewModel(DataContext as MainWindowViewModel);
+        UpdateResponsiveLayout();
+    }
+
+    private void AttachToViewModel(MainWindowViewModel? viewModel)
+    {
+        if (ReferenceEquals(_viewModel, viewModel))
+        {
+            return;
+        }
+
+        if (_viewModel is not null)
+        {
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        }
+
+        DetachFromBuffer();
+        _viewModel = viewModel;
+
+        if (_viewModel is not null)
+        {
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            AttachToBuffer(_viewModel.SelectedBuffer, scrollToBottom: true);
+        }
+
+        UpdateTrayState();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainWindowViewModel.SelectedBuffer))
+        {
+            AttachToBuffer(_viewModel?.SelectedBuffer, scrollToBottom: true);
+            QueueFocusComposer();
+            return;
+        }
+
+        if (e.PropertyName is nameof(MainWindowViewModel.MinimizeToTrayEnabled)
+            or nameof(MainWindowViewModel.TrayToolTipText)
+            or nameof(MainWindowViewModel.SelectedLanguageCode))
+        {
+            UpdateTrayState();
+        }
+    }
+
+    private void AttachToBuffer(BufferItemViewModel? buffer, bool scrollToBottom)
+    {
+        if (ReferenceEquals(_observedBuffer, buffer))
+        {
+            if (scrollToBottom)
+            {
+                QueueScrollToBottom(immediate: false);
+            }
+
+            return;
+        }
+
+        DetachFromBuffer();
+        _observedBuffer = buffer;
+
+        if (_observedBuffer is not null)
+        {
+            _observedBuffer.Messages.CollectionChanged += OnMessagesCollectionChanged;
+        }
+
+        if (scrollToBottom)
+        {
+            QueueScrollToBottom(immediate: false);
+        }
+    }
+
+    private void DetachFromBuffer()
+    {
+        if (_observedBuffer is null)
+        {
+            return;
+        }
+
+        _observedBuffer.Messages.CollectionChanged -= OnMessagesCollectionChanged;
+        _observedBuffer = null;
+    }
+
+    private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action is NotifyCollectionChangedAction.Add
+            or NotifyCollectionChangedAction.Move
+            or NotifyCollectionChangedAction.Remove
+            or NotifyCollectionChangedAction.Replace
+            or NotifyCollectionChangedAction.Reset)
+        {
+            AttachChatScrollHost();
+            InvalidateChatLayout();
+
+            if (_stickToBottom || IsNearBottom())
+            {
+                QueueScrollToBottom(immediate: false);
+            }
+        }
+    }
+
+    private void OnChatScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        if (_isAutoScrolling)
+        {
+            return;
+        }
+
+        _stickToBottom = IsNearBottom();
+    }
+
+    private void OnChatScrollViewerSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (_isAutoScrolling)
+        {
+            return;
+        }
+
+        if (_stickToBottom || IsNearBottom())
+        {
+            QueueScrollToBottom(immediate: false);
+        }
+    }
+
+    private void QueueScrollToBottom(bool immediate = true)
+    {
+        _stickToBottom = true;
+        var requestId = ++_autoScrollRequestId;
+        var deferredRequestId = ++_deferredScrollRequestId;
+        Dispatcher.UIThread.Post(async () =>
+        {
+            if (!immediate)
+            {
+                await Task.Delay(DeferredScrollQuietPeriodMs);
+            }
+
+            if (requestId != _autoScrollRequestId || deferredRequestId != _deferredScrollRequestId)
+            {
+                return;
+            }
+
+            _isAutoScrolling = true;
+
+            try
+            {
+                await ScrollToBottomAfterLayoutAsync(requestId);
+            }
+            finally
+            {
+                _isAutoScrolling = false;
+                _stickToBottom = true;
+            }
+        }, DispatcherPriority.Background);
+    }
+
+    private bool IsNearBottom()
+    {
+        if (_chatScrollHost is null)
+        {
+            return true;
+        }
+
+        var remainingHeight = _chatScrollHost.Extent.Height - _chatScrollHost.Viewport.Height - _chatScrollHost.Offset.Y;
+        return remainingHeight <= 24;
+    }
+
+    private async Task ScrollToBottomAfterLayoutAsync(int requestId)
+    {
+        if (requestId != _autoScrollRequestId)
+        {
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ForceChatLayout();
+            ScrollChatToBottomCore();
+        }, DispatcherPriority.Loaded);
+
+        if (requestId != _autoScrollRequestId)
+        {
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ForceChatLayout();
+            ScrollChatToBottomCore();
+        }, DispatcherPriority.Background);
+    }
+
+    private void ScrollChatToBottomCore()
+    {
+        if (_observedBuffer?.Messages.Count > 0)
+        {
+            ActiveChatListBox.ScrollIntoView(_observedBuffer.Messages[^1]);
+        }
+
+        if (_chatScrollHost is null)
+        {
+            return;
+        }
+
+        var bottomOffset = Math.Max(0, _chatScrollHost.Extent.Height - _chatScrollHost.Viewport.Height);
+        _chatScrollHost.Offset = new Vector(_chatScrollHost.Offset.X, bottomOffset);
+    }
+
+    private void ForceChatLayout()
+    {
+        AttachChatScrollHost();
+        ActiveChatListBox.UpdateLayout();
+        _chatScrollHost?.UpdateLayout();
+    }
+
+    private void InvalidateChatLayout()
+    {
+        ActiveChatListBox.InvalidateMeasure();
+        ActiveChatListBox.InvalidateArrange();
+        _chatScrollHost?.InvalidateMeasure();
+        _chatScrollHost?.InvalidateArrange();
+    }
+
+    private async void OnClosed(object? sender, EventArgs e)
+    {
+        DataContextChanged -= OnDataContextChanged;
+        Opened -= OnOpened;
+        SizeChanged -= OnWindowSizeChanged;
+        Activated -= OnActivated;
+        Deactivated -= OnDeactivated;
+        Closed -= OnClosed;
+        DetachChatScrollHost();
+        DetachFromBuffer();
+        DisposeTrayIcon();
+
+        if (_viewModel is not null)
+        {
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _viewModel = null;
+        }
+
+        if (!SuppressViewModelDispose && DataContext is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+        }
+    }
+
+    private void OnWindowSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        UpdateResponsiveLayout();
+    }
+
+    private void UpdateResponsiveLayout()
+    {
+        _viewModel?.SetCompactLayout(ClientSize.Width < CompactLayoutWidthThreshold);
+        _viewModel?.SetLowResolutionLayout(ClientSize.Height < LowResolutionHeightThreshold);
+    }
+
+    private void AttachChatScrollHost()
+    {
+        var scrollHost = ActiveChatListBox.FindDescendantOfType<ScrollViewer>();
+        if (ReferenceEquals(_chatScrollHost, scrollHost))
+        {
+            return;
+        }
+
+        DetachChatScrollHost();
+        _chatScrollHost = scrollHost;
+
+        if (_chatScrollHost is not null)
+        {
+            _chatScrollHost.ScrollChanged += OnChatScrollChanged;
+            _chatScrollHost.SizeChanged += OnChatScrollViewerSizeChanged;
+        }
+    }
+
+    private void DetachChatScrollHost()
+    {
+        if (_chatScrollHost is null)
+        {
+            return;
+        }
+
+        _chatScrollHost.ScrollChanged -= OnChatScrollChanged;
+        _chatScrollHost.SizeChanged -= OnChatScrollViewerSizeChanged;
+        _chatScrollHost = null;
+    }
+
+    protected void OnMinimizeWindowClick(object? sender, RoutedEventArgs e)
+    {
+        if (ShouldMinimizeToTray())
+        {
+            HideToTray();
+            return;
+        }
+
+        WindowState = WindowState.Minimized;
+    }
+
+    protected void OnToggleMaximizeWindowClick(object? sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+    }
+
+    protected void OnCloseWindowClick(object? sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void OnWindowKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!IsQuitApplicationGesture(e))
+        {
+            return;
+        }
+
+        ShutdownApplication();
+        e.Handled = true;
+    }
+
+    protected void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is Visual sourceVisual
+            && sourceVisual.FindAncestorOfType<Button>(includeSelf: true) is not null)
+        {
+            return;
+        }
+
+        var point = e.GetCurrentPoint(this);
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        if (e.ClickCount == 2 && CanMaximize)
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+            e.Handled = true;
+            return;
+        }
+
+        BeginMoveDrag(e);
+        e.Handled = true;
+    }
+
+    protected void OnChannelUserPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control { DataContext: ChannelUserViewModel user } control
+            || _viewModel is null
+            || e.ClickCount != 2
+            || !e.GetCurrentPoint(control).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        _ = _viewModel.OpenPrivateChatCommand.ExecuteAsync(user);
+        e.Handled = true;
+    }
+
+    protected void OnComposerKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox textBox || _viewModel is null || e.KeyModifiers != KeyModifiers.None)
+        {
+            return;
+        }
+
+        var handled = false;
+        var caretIndex = textBox.CaretIndex;
+
+        switch (e.Key)
+        {
+            case Key.Up:
+                handled = _viewModel.TryRecallPreviousDraft();
+                caretIndex = textBox.Text?.Length ?? 0;
+                break;
+            case Key.Down:
+                handled = _viewModel.TryRecallNextDraft();
+                caretIndex = textBox.Text?.Length ?? 0;
+                break;
+            case Key.Tab:
+                handled = _viewModel.TryAutocompleteNick(textBox.CaretIndex, out caretIndex);
+                break;
+        }
+
+        if (!handled)
+        {
+            return;
+        }
+
+        textBox.Text = _viewModel.DraftMessage;
+        textBox.CaretIndex = Math.Clamp(caretIndex, 0, textBox.Text?.Length ?? 0);
+        e.Handled = true;
+    }
+
+    protected void OnThemeEditorPopupClosed(object? sender, EventArgs e)
+    {
+        if (_viewModel?.IsThemeEditorOpen == true)
+        {
+            _viewModel.CloseThemeEditorCommand.Execute(null);
+        }
+    }
+
+    protected void OnConnectionEditorPopupClosed(object? sender, EventArgs e)
+    {
+        if (_viewModel?.IsConnectionEditorOpen == true)
+        {
+            _viewModel.CloseConnectionEditorCommand.Execute(null);
+        }
+    }
+
+    private void QueueFocusComposer()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            var composer = ResolveComposerTextBox();
+            if (composer is null || !IsActive || !composer.IsEnabled)
+            {
+                return;
+            }
+
+            composer.Focus();
+            composer.CaretIndex = composer.Text?.Length ?? 0;
+        }, DispatcherPriority.Loaded);
+    }
+
+    private void UpdateWindowChrome(WindowState state)
+    {
+        var isMaximized = state == WindowState.Maximized;
+        MaximizeGlyphCanvas.IsVisible = !isMaximized;
+        RestoreGlyphCanvas.IsVisible = isMaximized;
+    }
+
+    private bool ShouldMinimizeToTray() => _viewModel?.MinimizeToTrayEnabled == true;
+
+    private void HideToTray()
+    {
+        if (_isHidingToTray)
+        {
+            return;
+        }
+
+        _isHidingToTray = true;
+        try
+        {
+            EnsureTrayIcon();
+            UpdateTrayState();
+            ShowInTaskbar = false;
+            WindowState = WindowState.Normal;
+            Hide();
+            _isHiddenToTray = true;
+            MacDockIconController.SetDockIconVisible(false);
+            _viewModel?.SetForegroundState(false);
+        }
+        finally
+        {
+            _isHidingToTray = false;
+        }
+    }
+
+    private void RestoreFromTray()
+    {
+        if (_isHiddenToTray)
+        {
+            MacDockIconController.SetDockIconVisible(true);
+            _isHiddenToTray = false;
+        }
+
+        ShowInTaskbar = true;
+
+        if (!IsVisible)
+        {
+            Show();
+        }
+
+        WindowState = WindowState.Normal;
+        Activate();
+        _viewModel?.SetForegroundState(true);
+    }
+
+    private void EnsureTrayIcon()
+    {
+        if (_trayIcon is not null)
+        {
+            return;
+        }
+
+        _trayShowItem = new NativeMenuItem();
+        _trayShowItem.Click += OnTrayShowClick;
+
+        _trayQuitItem = new NativeMenuItem();
+        _trayQuitItem.Click += OnTrayQuitClick;
+
+        var menu = new NativeMenu();
+        menu.Add(_trayShowItem);
+        menu.Add(_trayQuitItem);
+
+        using var iconStream = AssetLoader.Open(new Uri("avares://QuasselGlow/Assets/Icons/quassel.ico"));
+        _trayIcon = new TrayIcon
+        {
+            Icon = new WindowIcon(iconStream),
+            Menu = menu,
+            ToolTipText = _viewModel?.TrayToolTipText ?? "QuasselGlow",
+            IsVisible = false
+        };
+        _trayIcon.Clicked += OnTrayIconClicked;
+        UpdateTrayMenuText();
+    }
+
+    private void UpdateTrayState()
+    {
+        EnsureTrayIcon();
+        UpdateTrayMenuText();
+
+        if (_trayIcon is null)
+        {
+            return;
+        }
+
+        _trayIcon.ToolTipText = _viewModel?.TrayToolTipText ?? "QuasselGlow";
+        _trayIcon.IsVisible = ShouldMinimizeToTray();
+    }
+
+    private void UpdateTrayMenuText()
+    {
+        if (_viewModel is null)
+        {
+            if (_trayShowItem is not null)
+            {
+                _trayShowItem.Header = "Show QuasselGlow";
+            }
+
+            if (_trayQuitItem is not null)
+            {
+                _trayQuitItem.Header = "Quit QuasselGlow";
+            }
+
+            return;
+        }
+
+        if (_trayShowItem is not null)
+        {
+            _trayShowItem.Header = _viewModel.Strings["TrayShow"];
+        }
+
+        if (_trayQuitItem is not null)
+        {
+            _trayQuitItem.Header = _viewModel.Strings["TrayQuit"];
+        }
+    }
+
+    private void DisposeTrayIcon()
+    {
+        if (_trayIcon is not null)
+        {
+            _trayIcon.Clicked -= OnTrayIconClicked;
+            _trayIcon.IsVisible = false;
+            _trayIcon = null;
+        }
+
+        if (_trayShowItem is not null)
+        {
+            _trayShowItem.Click -= OnTrayShowClick;
+            _trayShowItem = null;
+        }
+
+        if (_trayQuitItem is not null)
+        {
+            _trayQuitItem.Click -= OnTrayQuitClick;
+            _trayQuitItem = null;
+        }
+    }
+
+    private void OnTrayIconClicked(object? sender, EventArgs e)
+    {
+        RestoreFromTray();
+    }
+
+    private void OnTrayShowClick(object? sender, EventArgs e)
+    {
+        RestoreFromTray();
+    }
+
+    private void OnTrayQuitClick(object? sender, EventArgs e)
+    {
+        ShutdownApplication();
+    }
+
+    private static bool IsQuitApplicationGesture(KeyEventArgs e)
+    {
+        if (!OperatingSystem.IsMacOS() || e.Key != Key.Q)
+        {
+            return false;
+        }
+
+        var modifiers = e.KeyModifiers;
+        return modifiers.HasFlag(KeyModifiers.Meta)
+            && !modifiers.HasFlag(KeyModifiers.Control)
+            && !modifiers.HasFlag(KeyModifiers.Alt)
+            && !modifiers.HasFlag(KeyModifiers.Shift);
+    }
+
+    private void ShutdownApplication()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Shutdown();
+            return;
+        }
+
+        Close();
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == WindowStateProperty)
+        {
+            UpdateWindowChrome(WindowState);
+
+            if (!_isHidingToTray && WindowState == WindowState.Minimized && ShouldMinimizeToTray())
+            {
+                HideToTray();
+            }
+        }
+    }
+}

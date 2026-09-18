@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuasselGlow – icon proposals</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #e9ecef;
+    --panel: #ffffff;
+    --ink: #1b2430;
+    --ink-soft: #5d6b7a;
+    --line: #d5dae0;
+    --chip: #f1f4f8;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  html[data-mode="dark"] {
+    --bg: #0b0f14;
+    --panel: #12171e;
+    --ink: #e8edf2;
+    --ink-soft: #9aa8b6;
+    --line: #262d36;
+    --chip: #0f141a;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    padding: 30px 26px 70px;
+    -webkit-font-smoothing: antialiased;
+    transition: background .18s ease, color .18s ease;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  header h1 { font-size: 23px; letter-spacing: -.01em; }
+  header p { color: var(--ink-soft); margin-top: 8px; font-size: 14px; line-height: 1.6; max-width: 780px; }
+
+  .controls { display: flex; gap: 10px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
+  .ghost {
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft);
+    border-radius: 999px; padding: 8px 15px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .hint { font-size: 12.5px; color: var(--ink-soft); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 18px; margin-top: 26px; }
+
+  .con {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .con h2 { font-size: 15px; }
+  .con h2 .n {
+    display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 8px;
+    border-radius: 6px; background: var(--chip); border: 1px solid var(--line);
+    font-size: 11px; font-weight: 700; vertical-align: 1px;
+  }
+  .con .desc { color: var(--ink-soft); font-size: 12.5px; line-height: 1.55; margin-top: 7px; min-height: 52px; }
+
+  .showcase { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; margin: 16px 0 14px; }
+  .ladder { display: flex; align-items: flex-end; gap: 14px; }
+  .ladder figure, .variants figure { display: grid; gap: 6px; justify-items: center; }
+  .ladder figcaption, .variants figcaption { font-size: 10.5px; color: var(--ink-soft); font-family: var(--mono); }
+  .variants { display: flex; gap: 14px; padding-left: 18px; border-left: 1px solid var(--line); }
+
+  .ic { display: block; }
+  .ic .ic-bg { fill: var(--bg-c); }
+  .ic.brand { color: var(--fg); }
+  .ic.light .ic-bg { fill: #f1f4f8; }
+  .ic.light { color: var(--light-fg); }
+  .ic.dark .ic-bg { fill: #0f141a; }
+  .ic.dark { color: var(--dark-fg); }
+  .ic.mono { color: var(--ink); }
+  .ic.mono .ic-bg { display: none; }
+
+  /* per-concept palettes */
+  .c1 { --bg-c:#2F6FD0; --fg:#ffffff; --light-fg:#2F6FD0; --dark-fg:#7FB2FF; }
+  .c2 { --bg-c:#0F766E; --fg:#ffffff; --light-fg:#0F766E; --dark-fg:#5CD0C0; }
+  .c3 { --bg-c:#D6652F; --fg:#ffffff; --light-fg:#C0552A; --dark-fg:#FF9A66; }
+  .c4 { --bg-c:#0F141A; --fg:#4ECB85; --light-fg:#12855A; --dark-fg:#4ECB85; }
+  .c5 { --bg-c:#312E81; --fg:#A5B4FC; --light-fg:#4338CA; --dark-fg:#A5B4FC; }
+  .c6 { --bg-c:#1F2937; --fg:#E0B94B; --light-fg:#A87A12; --dark-fg:#E0B94B; }
+
+  .verdict { font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); border-top: 1px solid var(--line); padding-top: 12px; }
+  .verdict b { color: var(--ink); }
+
+  .current {
+    display: flex; gap: 18px; align-items: center; margin-top: 26px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px;
+  }
+  .current p { font-size: 13px; line-height: 1.6; color: var(--ink-soft); max-width: 680px; }
+  .current b { color: var(--ink); }
+
+  footer { margin-top: 30px; font-size: 12.5px; color: var(--ink-soft); line-height: 1.7; }
+  footer code { font-family: var(--mono); font-size: 11.5px; background: var(--chip); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- 1: hash / channel -->
+    <symbol id="g-hash" viewBox="0 0 512 512">
+      <g fill="none" stroke="currentColor" stroke-width="34" stroke-linecap="round">
+        <line x1="214" y1="150" x2="184" y2="362"/>
+        <line x1="334" y1="150" x2="304" y2="362"/>
+        <line x1="150" y1="216" x2="362" y2="216"/>
+        <line x1="150" y1="300" x2="362" y2="300"/>
+      </g>
+    </symbol>
+    <!-- 2: chat bubble -->
+    <symbol id="g-bubble" viewBox="0 0 512 512">
+      <rect x="112" y="138" width="288" height="200" rx="56" fill="currentColor"/>
+      <path d="M182 322 L168 404 L258 322 Z" fill="currentColor"/>
+    </symbol>
+    <!-- 3: link / glow node -->
+    <symbol id="g-link" viewBox="0 0 512 512">
+      <line x1="182" y1="330" x2="330" y2="182" stroke="currentColor" stroke-width="28" stroke-linecap="round" opacity=".92"/>
+      <circle cx="182" cy="330" r="42" fill="currentColor"/>
+      <circle cx="330" cy="182" r="42" fill="currentColor"/>
+      <circle cx="330" cy="182" r="78" fill="none" stroke="currentColor" stroke-width="12" opacity=".4"/>
+    </symbol>
+    <!-- 4: terminal prompt -->
+    <symbol id="g-prompt" viewBox="0 0 512 512">
+      <path d="M170 168 L272 256 L170 344" fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="294" y1="346" x2="362" y2="346" stroke="currentColor" stroke-width="36" stroke-linecap="round"/>
+    </symbol>
+    <!-- 5: beacon / glow -->
+    <symbol id="g-beacon" viewBox="0 0 512 512">
+      <circle cx="256" cy="256" r="48" fill="currentColor"/>
+      <circle cx="256" cy="256" r="110" fill="none" stroke="currentColor" stroke-width="15" opacity=".45"/>
+      <circle cx="256" cy="256" r="174" fill="none" stroke="currentColor" stroke-width="11" opacity=".2"/>
+    </symbol>
+    <!-- 6: Q monogram -->
+    <symbol id="g-q" viewBox="0 0 512 512">
+      <circle cx="252" cy="238" r="118" fill="none" stroke="currentColor" stroke-width="40"/>
+      <line x1="312" y1="298" x2="388" y2="378" stroke="currentColor" stroke-width="40" stroke-linecap="round"/>
+      <circle cx="252" cy="238" r="40" fill="currentColor"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header>
+    <h1>QuasselGlow — icon proposals</h1>
+    <p>Six directions for a new application icon. Every concept is shown as a macOS-style squircle, a size ladder down to 16 px, light/dark variants, and a monochrome template for the menu bar and tray. The current icon is included for comparison at the bottom of the page.</p>
+    <div class="controls">
+      <button class="ghost" id="modeBtn">Dark mode</button>
+      <span class="hint">The icon must stay readable at 16 px and must not depend on colour alone.</span>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <article class="con">
+      <h2><span class="n">1</span>Hash / channel</h2>
+      <p class="desc">A bold channel sign. Instantly reads as IRC, scales perfectly to 16 px, and carries no colour dependency.</p>
+      <div class="showcase">
+        <div class="ladder">
+          <figure><svg class="ic c1" data-glyph="g-hash" data-variant="brand" data-size="132"></svg><figcaption>132</figcaption></figure>
+          <figure><svg class="ic c1" data-glyph="g-hash" data-variant="brand" data-size="48"></svg><figcaption>48</figcaption></figure>
+          <figure><svg class="ic c1" data-glyph="g-hash" data-variant="brand" data-size="24"></svg><figcaption>24</figcaption></figure>
+          <figure><svg class="ic c1" data-glyph="g-hash" data-variant="brand" data-size="16"></svg><figcaption>16</figcaption></figure>
+        </div>
+        <div class="variants">
+          <figure><svg class="ic c1" data-glyph="g-hash" data-variant="light" data-size="64"></svg><figcaption>light</figcaption></figure>
+          <figure><svg class="ic c1" data-glyph="g-hash" data-variant="dark" data-size="64"></svg><figcaption>dark</figcaption></figure>
+          <figure><svg class="ic c1" data-glyph="g-hash" data-variant="mono" data-size="48"></svg><figcaption>mono</figcaption></figure>
+        </div>
+      </div>
+      <p class="verdict"><b>Strongest:</b> unambiguous, timeless and the safest store/ dock icon. <b>Risk:</b> many IRC clients already use a hash, so it is recognisable but not distinctive.</p>
+    </article>
+
+    <article class="con">
+      <h2><span class="n">2</span>Chat bubble</h2>
+      <p class="desc">Quassel lineage without copying its logo: a single speech bubble that reads as a conversation at any size.</p>
+      <div class="showcase">
+        <div class="ladder">
+          <figure><svg class="ic c2" data-glyph="g-bubble" data-variant="brand" data-size="132"></svg><figcaption>132</figcaption></figure>
+          <figure><svg class="ic c2" data-glyph="g-bubble" data-variant="brand" data-size="48"></svg><figcaption>48</figcaption></figure>
+          <figure><svg class="ic c2" data-glyph="g-bubble" data-variant="brand" data-size="24"></svg><figcaption>24</figcaption></figure>
+          <figure><svg class="ic c2" data-glyph="g-bubble" data-variant="brand" data-size="16"></svg><figcaption>16</figcaption></figure>
+        </div>
+        <div class="variants">
+          <figure><svg class="ic c2" data-glyph="g-bubble" data-variant="light" data-size="64"></svg><figcaption>light</figcaption></figure>
+          <figure><svg class="ic c2" data-glyph="g-bubble" data-variant="dark" data-size="64"></svg><figcaption>dark</figcaption></figure>
+          <figure><svg class="ic c2" data-glyph="g-bubble" data-variant="mono" data-size="48"></svg><figcaption>mono</figcaption></figure>
+        </div>
+      </div>
+      <p class="verdict"><b>Strongest:</b> warm and approachable, clearly a chat app. <b>Risk:</b> the most common icon metaphor in messaging, so it needs the accent colour to feel like QuasselGlow.</p>
+    </article>
+
+    <article class="con">
+      <h2><span class="n">3</span>Link / glow node</h2>
+      <p class="desc">The current constellation, reduced to two nodes and given a halo on the far node. Same idea, far clearer.</p>
+      <div class="showcase">
+        <div class="ladder">
+          <figure><svg class="ic c3" data-glyph="g-link" data-variant="brand" data-size="132"></svg><figcaption>132</figcaption></figure>
+          <figure><svg class="ic c3" data-glyph="g-link" data-variant="brand" data-size="48"></svg><figcaption>48</figcaption></figure>
+          <figure><svg class="ic c3" data-glyph="g-link" data-variant="brand" data-size="24"></svg><figcaption>24</figcaption></figure>
+          <figure><svg class="ic c3" data-glyph="g-link" data-variant="brand" data-size="16"></svg><figcaption>16</figcaption></figure>
+        </div>
+        <div class="variants">
+          <figure><svg class="ic c3" data-glyph="g-link" data-variant="light" data-size="64"></svg><figcaption>light</figcaption></figure>
+          <figure><svg class="ic c3" data-glyph="g-link" data-variant="dark" data-size="64"></svg><figcaption>dark</figcaption></figure>
+          <figure><svg class="ic c3" data-glyph="g-link" data-variant="mono" data-size="48"></svg><figcaption>mono</figcaption></figure>
+        </div>
+      </div>
+      <p class="verdict"><b>Strongest:</b> keeps continuity with the existing icon while fixing its biggest weakness — the halo communicates "Glow". <b>Risk:</b> connection/network marks are also generic.</p>
+    </article>
+
+    <article class="con">
+      <h2><span class="n">4</span>Terminal prompt</h2>
+      <p class="desc">A shell prompt in a dark key. Speaks to the developer/IRC-core audience and looks sharp in a dark dock.</p>
+      <div class="showcase">
+        <div class="ladder">
+          <figure><svg class="ic c4" data-glyph="g-prompt" data-variant="brand" data-size="132"></svg><figcaption>132</figcaption></figure>
+          <figure><svg class="ic c4" data-glyph="g-prompt" data-variant="brand" data-size="48"></svg><figcaption>48</figcaption></figure>
+          <figure><svg class="ic c4" data-glyph="g-prompt" data-variant="brand" data-size="24"></svg><figcaption>24</figcaption></figure>
+          <figure><svg class="ic c4" data-glyph="g-prompt" data-variant="brand" data-size="16"></svg><figcaption>16</figcaption></figure>
+        </div>
+        <div class="variants">
+          <figure><svg class="ic c4" data-glyph="g-prompt" data-variant="light" data-size="64"></svg><figcaption>light</figcaption></figure>
+          <figure><svg class="ic c4" data-glyph="g-prompt" data-variant="dark" data-size="64"></svg><figcaption>dark</figcaption></figure>
+          <figure><svg class="ic c4" data-glyph="g-prompt" data-variant="mono" data-size="48"></svg><figcaption>mono</figcaption></figure>
+        </div>
+      </div>
+      <p class="verdict"><b>Strongest:</b> distinct from every other chat icon and very legible when small. <b>Risk:</b> reads as "terminal", not "chat", so it may undersell the client.</p>
+    </article>
+
+    <article class="con">
+      <h2><span class="n">5</span>Beacon / glow</h2>
+      <p class="desc">A lit point with radiating rings — "connected and alive". Purest expression of the Glow name.</p>
+      <div class="showcase">
+        <div class="ladder">
+          <figure><svg class="ic c5" data-glyph="g-beacon" data-variant="brand" data-size="132"></svg><figcaption>132</figcaption></figure>
+          <figure><svg class="ic c5" data-glyph="g-beacon" data-variant="brand" data-size="48"></svg><figcaption>48</figcaption></figure>
+          <figure><svg class="ic c5" data-glyph="g-beacon" data-variant="brand" data-size="24"></svg><figcaption>24</figcaption></figure>
+          <figure><svg class="ic c5" data-glyph="g-beacon" data-variant="brand" data-size="16"></svg><figcaption>16</figcaption></figure>
+        </div>
+        <div class="variants">
+          <figure><svg class="ic c5" data-glyph="g-beacon" data-variant="light" data-size="64"></svg><figcaption>light</figcaption></figure>
+          <figure><svg class="ic c5" data-glyph="g-beacon" data-variant="dark" data-size="64"></svg><figcaption>dark</figcaption></figure>
+          <figure><svg class="ic c5" data-glyph="g-beacon" data-variant="mono" data-size="48"></svg><figcaption>mono</figcaption></figure>
+        </div>
+      </div>
+      <p class="verdict"><b>Strongest:</b> unique, calm and clearly "Glow"; works beautifully as a monochrome tray icon. <b>Risk:</b> says nothing about IRC or chat on its own.</p>
+    </article>
+
+    <article class="con">
+      <h2><span class="n">6</span>Q monogram</h2>
+      <p class="desc">A geometric Q whose tail doubles as a chat pointer, with a dot for a node. Brand-led rather than category-led.</p>
+      <div class="showcase">
+        <div class="ladder">
+          <figure><svg class="ic c6" data-glyph="g-q" data-variant="brand" data-size="132"></svg><figcaption>132</figcaption></figure>
+          <figure><svg class="ic c6" data-glyph="g-q" data-variant="brand" data-size="48"></svg><figcaption>48</figcaption></figure>
+          <figure><svg class="ic c6" data-glyph="g-q" data-variant="brand" data-size="24"></svg><figcaption>24</figcaption></figure>
+          <figure><svg class="ic c6" data-glyph="g-q" data-variant="brand" data-size="16"></svg><figcaption>16</figcaption></figure>
+        </div>
+        <div class="variants">
+          <figure><svg class="ic c6" data-glyph="g-q" data-variant="light" data-size="64"></svg><figcaption>light</figcaption></figure>
+          <figure><svg class="ic c6" data-glyph="g-q" data-variant="dark" data-size="64"></svg><figcaption>dark</figcaption></figure>
+          <figure><svg class="ic c6" data-glyph="g-q" data-variant="mono" data-size="48"></svg><figcaption>mono</figcaption></figure>
+        </div>
+      </div>
+      <p class="verdict"><b>Strongest:</b> ownable and clearly branded. <b>Risk:</b> a letter mark depends on people already knowing the app, and a Q with a tail can read as a magnifier at 16 px.</p>
+    </article>
+
+  </div>
+
+  <div class="current">
+    <svg viewBox="0 0 256 256" style="width:96px;height:96px;flex:none">
+      <circle cx="128" cy="128" r="120" fill="#EDE7E1"/>
+      <line x1="128" y1="128" x2="190" y2="90" stroke="#2F6F6D" stroke-width="4" stroke-linecap="round"/>
+      <line x1="128" y1="128" x2="85" y2="170" stroke="#2F6F6D" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="128" cy="128" r="10" fill="#2F6F6D"/>
+      <circle cx="190" cy="90" r="8" fill="#2F6F6D"/>
+      <circle cx="85" cy="170" r="8" fill="#2F6F6D"/>
+    </svg>
+    <p><b>Current icon, for comparison.</b> A beige circle with three nodes and thin connecting lines. It is abstract, has no chat or IRC signal, uses a full-bleed circle instead of a macOS squircle, and the thin strokes disappear below 32 px. Concept 3 is the direct evolution; concepts 1, 2, 4 and 5 are cleaner breaks.</p>
+  </div>
+
+  <footer>
+    <p><b>What each concept needs before shipping</b></p>
+    <p>1. A macOS squircle master (512 px) plus a full-size PNG ladder: <code>16 32 64 128 256 512</code>.</p>
+    <p>2. A monochrome template variant for the macOS menu bar and the Windows/Linux tray, since those are drawn in a single system colour.</p>
+    <p>3. A 16 px pass with hand-tuned strokes — small sizes usually need thicker glyphs than a straight downscale.</p>
+    <p>4. A favicon/32 px and the existing <code>quassel.ico</code> regenerated from the chosen master.</p>
+  </footer>
+</div>
+
+<script>
+  document.querySelectorAll('svg.ic').forEach(function (svg) {
+    var glyph = svg.dataset.glyph;
+    var variant = svg.dataset.variant || 'brand';
+    var size = svg.dataset.size || '64';
+    svg.setAttribute('viewBox', '0 0 512 512');
+    svg.setAttribute('width', size);
+    svg.setAttribute('height', size);
+    svg.classList.add(variant);
+    svg.innerHTML =
+      '<rect class="ic-bg" x="48" y="48" width="416" height="416" rx="108"></rect>' +
+      '<use href="#' + glyph + '"></use>';
+  });
+
+  var modeBtn = document.getElementById('modeBtn');
+  modeBtn.addEventListener('click', function () {
+    var dark = document.documentElement.dataset.mode === 'dark';
+    document.documentElement.dataset.mode = dark ? 'light' : 'dark';
+    modeBtn.textContent = dark ? 'Dark mode' : 'Light mode';
+  });
+</script>
+</body>
+</html>

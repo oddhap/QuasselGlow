@@ -72,7 +72,8 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 string.IsNullOrWhiteSpace(persisted.ThemeModeKey) ? string.Empty : persisted.ThemeModeKey.Trim(),
                 persisted.MinimizeToTray,
                 persisted.AutoReconnect,
-                persisted.ShowDaySeparators);
+                persisted.ShowDaySeparators,
+                persisted.UseClassicLayout);
 
             return ConnectionSettingsLoadResult.Loaded(settings);
         }
@@ -112,7 +113,8 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 ThemeModeKey = string.IsNullOrWhiteSpace(settings.ThemeModeKey) ? string.Empty : settings.ThemeModeKey.Trim(),
                 MinimizeToTray = settings.MinimizeToTray,
                 AutoReconnect = settings.AutoReconnect,
-                ShowDaySeparators = settings.ShowDaySeparators
+                ShowDaySeparators = settings.ShowDaySeparators,
+                UseClassicLayout = settings.UseClassicLayout
             };
 
             var json = JsonSerializer.Serialize(persisted, SerializerOptions);
@@ -225,6 +227,7 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
         public bool MinimizeToTray { get; init; }
         public bool AutoReconnect { get; init; }
         public bool ShowDaySeparators { get; init; } = true;
+        public bool UseClassicLayout { get; init; } = true;
     }
 
     private sealed record ProtectedSecret(string Value, bool IsDegraded)

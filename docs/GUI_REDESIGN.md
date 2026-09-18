@@ -90,8 +90,14 @@ The status strip sits **above** the work area and the composer stays pinned to t
   - Settings and connection editors are now centred overlays instead of
     `Popup`s, so they work identically at every window size.
   - Removed the separate compact/low-resolution top-panel and overview variants.
-- `src/QuasselGlow/Views/MainWindow.axaml.cs`
-  - Dropped the now-unused `CompactComposerTextBox` and popup-closed handlers.
+- `src/QuasselGlow/Views/MainWindowBase.cs`
+  - Shared window behaviour extracted from the code-behind: tray icon, chat
+    auto-scroll, composer keys, window chrome and responsive layout.
+- `src/QuasselGlow/Views/ClassicMainWindow.axaml` / `.axaml.cs`
+  - The previous card layout, restored as a second window for the toggle.
+- `src/QuasselGlow/App.axaml.cs`
+  - Owns the shared view model and swaps the active window when the layout
+    preference changes.
 - `src/QuasselGlow/App.axaml`
   - Reduced default `TextBox`/`Button` corner radius from 10 to 7.
 - `src/QuasselGlow/Appearance/AppThemeCatalog.cs`
@@ -114,6 +120,21 @@ continues to work. Only the default `glow` palette was neutralised:
   as before.
 - Because the editors are overlays, they no longer depend on available height.
   The old low-resolution “Overview” screen is gone.
+
+## Classic layout toggle
+
+The previous card-based interface is kept as a second window and can be selected
+at runtime:
+
+- The preference is stored as `UseClassicLayout` in the local connection settings
+  and defaults to `true`, so existing installations keep the classic layout.
+- The **Classic interface** checkbox in Settings switches layouts live. The app
+  creates the other window with the same `MainWindowViewModel`, transfers the
+  window bounds, and closes the old window without disposing the view model, so
+  the Quassel core session and all chat state survive the switch.
+- Both windows share behaviour through `MainWindowBase` (tray, chat auto-scroll,
+  composer keys, window chrome); each layout only supplies its own named controls.
+- `MainWindow` hosts the flat layout and `ClassicMainWindow` hosts the card layout.
 
 ## Verification
 
