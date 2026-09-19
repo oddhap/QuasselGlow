@@ -16,6 +16,7 @@ public sealed partial class BufferItemViewModel : ViewModelBase
     private long _latestTopicMessageOrder = long.MinValue;
     private bool _showDaySeparators = true;
     private string _daySeparatorLanguageCode = "en_US";
+    private bool _isDarkMode;
 
     [ObservableProperty]
     private string _displayName;
@@ -94,6 +95,7 @@ public sealed partial class BufferItemViewModel : ViewModelBase
         }
 
         var viewModel = new MessageItemViewModel(message);
+        viewModel.SetDarkMode(_isDarkMode);
         var insertAt = Messages.TakeWhile(item => item.MessageOrder < viewModel.MessageOrder).Count();
         Messages.Insert(insertAt, viewModel);
         RefreshDaySeparators();
@@ -129,6 +131,20 @@ public sealed partial class BufferItemViewModel : ViewModelBase
         _showDaySeparators = showDaySeparators;
         _daySeparatorLanguageCode = languageCode;
         RefreshDaySeparators();
+    }
+
+    public void ConfigureDarkMode(bool isDarkMode)
+    {
+        if (_isDarkMode == isDarkMode)
+        {
+            return;
+        }
+
+        _isDarkMode = isDarkMode;
+        foreach (var message in Messages)
+        {
+            message.SetDarkMode(isDarkMode);
+        }
     }
 
     partial void OnUnreadCountChanged(int value)

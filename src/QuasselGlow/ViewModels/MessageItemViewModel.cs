@@ -1,7 +1,9 @@
+using Avalonia.Media;
 using Quassel.Client.Application.Text;
 using Quassel.Client.Domain;
 using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
+using QuasselGlow.Appearance;
 
 namespace QuasselGlow.ViewModels;
 
@@ -30,6 +32,7 @@ public sealed class MessageItemViewModel : ViewModelBase
 
     private bool _isDaySeparatorVisible;
     private string _daySeparatorText = string.Empty;
+    private bool _isDarkMode;
 
     public MessageItemViewModel(QuasselMessage message)
     {
@@ -51,6 +54,7 @@ public sealed class MessageItemViewModel : ViewModelBase
     public bool HasSender => !string.IsNullOrWhiteSpace(SenderDisplay);
     public int MessageColumn => HasSender ? 2 : 1;
     public int MessageColumnSpan => HasSender ? 1 : 2;
+    public IBrush SenderBrush => NickColorPalette.Resolve(SenderDisplay, IsSelf, _isDarkMode);
     public bool IsSelf => Model.IsSelf;
     public bool IsHighlight => Model.IsHighlight;
     public bool IsStatus => IsStatusMessage(Model);
@@ -70,6 +74,17 @@ public sealed class MessageItemViewModel : ViewModelBase
     {
         IsDaySeparatorVisible = isVisible;
         DaySeparatorText = isVisible ? text : string.Empty;
+    }
+
+    internal void SetDarkMode(bool isDarkMode)
+    {
+        if (_isDarkMode == isDarkMode)
+        {
+            return;
+        }
+
+        _isDarkMode = isDarkMode;
+        OnPropertyChanged(nameof(SenderBrush));
     }
 
     private static bool IsStatusMessage(QuasselMessage message)

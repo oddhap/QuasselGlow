@@ -1305,6 +1305,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
         var created = new BufferItemViewModel(bufferInfo);
         created.ConfigureDaySeparators(ShowDaySeparators, SelectedLanguageCode);
+        created.ConfigureDarkMode(AppThemeCatalog.IsDarkMode(SelectedThemeModeKey));
         _buffersById[bufferInfo.BufferId] = created;
         _composerHistoryByBuffer.TryAdd(bufferInfo.BufferId, new ComposerHistoryState());
         created.PropertyChanged += OnBufferPropertyChanged;
@@ -2083,11 +2084,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private void ApplyAppearance()
     {
         App.CurrentApp?.ApplyAppearance(SelectedThemeKey, SelectedThemeModeKey);
+        ConfigureDarkModeForAllBuffers();
     }
 
     public void RefreshAppearance()
     {
         ApplyAppearance();
+    }
+
+    private void ConfigureDarkModeForAllBuffers()
+    {
+        var isDarkMode = AppThemeCatalog.IsDarkMode(SelectedThemeModeKey);
+        foreach (var buffer in _buffersById.Values)
+        {
+            buffer.ConfigureDarkMode(isDarkMode);
+        }
     }
 
     private bool TryContinueNickAutocomplete(string text, int caretIndex, out int newCaretIndex)
