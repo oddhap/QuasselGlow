@@ -398,6 +398,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         }
     }
 
+    public IReadOnlyList<MessageTextSegment> SelectedBufferSubtitleSegments =>
+        SelectedBuffer?.IsChannel == true ? SelectedBuffer.TopicSegments : [new(SelectedBufferSubtitleText)];
+
     public bool ShowSelectedBufferSubtitle => !string.IsNullOrWhiteSpace(SelectedBufferSubtitleText);
 
     public string SelectedNickText => string.IsNullOrWhiteSpace(SelectedNetwork?.MyNick) ? "nick" : SelectedNetwork.MyNick;
@@ -1879,6 +1882,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(CurrentNetworkText));
         OnPropertyChanged(nameof(SelectedBufferHeadingText));
         OnPropertyChanged(nameof(SelectedBufferSubtitleText));
+        OnPropertyChanged(nameof(SelectedBufferSubtitleSegments));
         OnPropertyChanged(nameof(ShowSelectedBufferSubtitle));
         OnPropertyChanged(nameof(SelectedNetworkStatusText));
         OnPropertyChanged(nameof(SelectedNickText));
@@ -1905,6 +1909,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(ConnectionStatusDetailText));
         OnPropertyChanged(nameof(SessionSummaryText));
         OnPropertyChanged(nameof(SelectedBufferSubtitleText));
+        OnPropertyChanged(nameof(SelectedBufferSubtitleSegments));
         OnPropertyChanged(nameof(ShowSelectedBufferSubtitle));
     }
 
@@ -1922,6 +1927,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         OnPropertyChanged(nameof(CurrentNetworkText));
         OnPropertyChanged(nameof(SelectedBufferHeadingText));
         OnPropertyChanged(nameof(SelectedBufferSubtitleText));
+        OnPropertyChanged(nameof(SelectedBufferSubtitleSegments));
         OnPropertyChanged(nameof(ShowSelectedBufferSubtitle));
         OnPropertyChanged(nameof(SelectedNetworkStatusText));
         OnPropertyChanged(nameof(SelectedNickText));
@@ -2018,6 +2024,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             && e.PropertyName is nameof(BufferItemViewModel.DisplayName)
                 or nameof(BufferItemViewModel.LastMessagePreview)
                 or nameof(BufferItemViewModel.ChannelTopic)
+                or nameof(BufferItemViewModel.TopicSegments)
                 or nameof(BufferItemViewModel.MemberCount)
                 or nameof(BufferItemViewModel.UnreadCount)
                 or nameof(BufferItemViewModel.HasMentionAlert)

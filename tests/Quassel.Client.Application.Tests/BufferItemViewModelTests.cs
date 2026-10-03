@@ -38,6 +38,23 @@ public sealed class BufferItemViewModelTests
         Assert.Equal(updatedColour, Assert.IsAssignableFrom<ISolidColorBrush>(buffer.ChannelUsers[0].NickBrush).Color);
     }
 
+    [Theory]
+    [InlineData("alice changed topic to: \"\u000303\u0002Welcome\u000F\"")]
+    [InlineData("\u0002'Welcome'\u0002")]
+    public void TopicExtractionKeepsStylesWithoutStatusLabelsOrQuotes(string contents)
+    {
+        var info = new QuasselBufferInfo(new BufferId(1), new NetworkId(1), QuasselBufferType.Channel, 0, "#test");
+        var buffer = new BufferItemViewModel(info);
+        buffer.AddMessage(CreateMessage(info, new MsgId(1), QuasselMessageFlags.None, QuasselMessageType.Topic, contents), false);
+        Assert.Equal("Welcome", buffer.ChannelTopic);
+        Assert.Equal("Welcome", string.Concat(buffer.TopicSegments.Select(s => s.Text)));
+        Assert.True(buffer.TopicSegments[0].Style.Bold);
+        buffer.SetChannelTopic("\u001DWelcome\u001D");
+        Assert.Equal("Welcome", buffer.ChannelTopic);
+        Assert.False(buffer.TopicSegments[0].Style.Bold);
+        Assert.True(buffer.TopicSegments[0].Style.Italic);
+    }
+
     [Fact]
     public void AddMessage_QueryBuffer_SetsPrivateMessageAlert()
     {

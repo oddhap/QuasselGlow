@@ -2,7 +2,6 @@ using Avalonia.Media;
 using Quassel.Client.Application.Text;
 using Quassel.Client.Domain;
 using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
 using QuasselGlow.Appearance;
 using Quassel.Client.Application.Dcc;
 
@@ -27,10 +26,6 @@ public sealed class MessageItemViewModel : ViewModelBase
         | QuasselMessageType.NetsplitQuit
         | QuasselMessageType.Invite;
 
-    private static readonly Regex LinkRegex = new(
-        @"(?<url>(?:https?://|www\.)[^\s<>""]+[^\s<>"".,;:!?])",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     private bool _isDaySeparatorVisible;
     private string _daySeparatorText = string.Empty;
     private bool _isDarkMode;
@@ -45,7 +40,13 @@ public sealed class MessageItemViewModel : ViewModelBase
         var cleanedContents = IrcFormattingCleaner.Clean(message.Contents);
         LineText = DccOffer is not null ? $"DCC CHAT · {DccOffer.Endpoint}" : BuildLineText(message, sender, cleanedContents);
         SenderDisplay = IsStatus ? string.Empty : sender.DisplayNick;
-        Segments = BuildSegments(LineText);
+        // Status builders insert their own labels; format before flattening the display text.
+        var formattedLine = DccOffer is not null ? LineText
+            : message.Type.HasFlag(QuasselMessageType.NetsplitJoin) || message.Type.HasFlag(QuasselMessageType.NetsplitQuit)
+                ? LineText : BuildLineText(message, sender, message.Contents);
+        var runs = IrcTextFormatter.Parse(formattedLine);
+        LineText = string.Concat(runs.Select(run => run.Text));
+        Segments = MessageTextSegment.FromRuns(runs);
     }
 
     public QuasselMessage Model { get; }
@@ -251,44 +252,6 @@ public sealed class MessageItemViewModel : ViewModelBase
             nick,
             userAndHost[..atIndex],
             userAndHost[(atIndex + 1)..]);
-    }
-
-    private static ReadOnlyCollection<MessageTextSegment> BuildSegments(string lineText)
-    {
-        if (string.IsNullOrEmpty(lineText))
-        {
-            return Array.AsReadOnly(Array.Empty<MessageTextSegment>());
-        }
-
-        var segments = new List<MessageTextSegment>();
-        var currentIndex = 0;
-
-        foreach (Match match in LinkRegex.Matches(lineText))
-        {
-            if (!match.Success)
-            {
-                continue;
-            }
-
-            if (match.Index > currentIndex)
-            {
-                segments.Add(new MessageTextSegment(lineText[currentIndex..match.Index]));
-            }
-
-            var linkText = match.Groups["url"].Value;
-            var normalizedUrl = linkText.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
-                ? $"https://{linkText}"
-                : linkText;
-            segments.Add(new MessageTextSegment(linkText, normalizedUrl));
-            currentIndex = match.Index + match.Length;
-        }
-
-        if (currentIndex < lineText.Length)
-        {
-            segments.Add(new MessageTextSegment(lineText[currentIndex..]));
-        }
-
-        return segments.AsReadOnly();
     }
 
     private readonly record struct SenderInfo(string DisplayNick, string User, string Host)

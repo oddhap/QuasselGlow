@@ -152,6 +152,77 @@ public sealed class DccChatTests
         Assert.False(model.SendCommand.CanExecute(null));
     }
 
+    [Theory]
+    [InlineData("!login oddi test-secret")]
+    [InlineData("  !LOGIN\tuser\ttest-secret")]
+    [InlineData("/login user test-secret")]
+    public async Task LoginIsSentUnchangedButMaskedAndExcludedFromHistory(string login)
+    {
+        var session = new FakeDccSession();
+        await using var model = new DccChatViewModel(new DccChatOffer("bot", IPAddress.Loopback, 5060), session, marshalToUiThread: false);
+        await model.StartAsync();
+        model.Draft = "!look";
+        await model.SendCommand.ExecuteAsync(null);
+        model.Draft = login;
+        await model.SendCommand.ExecuteAsync(null);
+        Assert.Equal(login, session.SentLines[^1]);
+        Assert.DoesNotContain("test-secret", model.Output);
+        Assert.DoesNotContain("test-secret", string.Concat(model.OutputSegments.Select(s => s.Text)));
+        Assert.Contains("••••", model.Output);
+        Assert.True(model.RecallHistory(previous: true));
+        Assert.Equal("!look", model.Draft);
+        Assert.False(model.RecallHistory(previous: true));
+        Assert.True(model.RecallHistory(previous: false));
+        Assert.Equal(string.Empty, model.Draft);
+    }
+
+    [Fact]
+    public async Task GameOutputKeepsStyledTextAndPlainTranscriptInSyncAcrossReads()
+    {
+        var session = new FakeDccSession();
+        await using var model = new DccChatViewModel(new DccChatOffer("bot", IPAddress.Loopback, 5060), session, marshalToUiThread: false);
+        await model.StartAsync();
+        session.Receive("\u00030");
+        session.Receive("3\u0002Town");
+        var oldSegments = model.OutputSegments;
+        session.Receive(" Square\u000F\nHP> ");
+        Assert.NotSame(oldSegments, model.OutputSegments);
+        Assert.Equal("Town Square\nHP> ", model.Output);
+        Assert.Equal(model.Output, string.Concat(model.OutputSegments.Select(s => s.Text)));
+        Assert.True(model.OutputSegments[0].Style.Bold);
+        Assert.Equal("#009300", model.OutputSegments[0].Style.Foreground);
+    }
+
+    [Fact]
+    public async Task ScrollingHistoryDoesNotStoreAnUnsentLoginDraft()
+    {
+        var session = new FakeDccSession();
+        await using var model = new DccChatViewModel(new DccChatOffer("bot", IPAddress.Loopback, 5060), session, marshalToUiThread: false);
+        await model.StartAsync();
+        model.Draft = "!look";
+        await model.SendCommand.ExecuteAsync(null);
+        model.Draft = "!login user test-secret";
+        model.RecallHistory(previous: true);
+        model.RecallHistory(previous: false);
+        Assert.Equal(string.Empty, model.Draft);
+    }
+
+    [Fact]
+    public async Task ScrollbackLimitTrimsTheSameTextFromStyledAndPlainOutput()
+    {
+        var session = new FakeDccSession();
+        await using var model = new DccChatViewModel(new DccChatOffer("bot", IPAddress.Loopback, 5060), session, marshalToUiThread: false);
+        await model.StartAsync();
+        session.Receive("old line\n\u000303" + new string('x', 200_000) + "\u000F\nHP> ");
+        Assert.True(model.Output.Length <= 200_000);
+        Assert.DoesNotContain("old line", model.Output);
+        Assert.EndsWith("HP> ", model.Output);
+        Assert.Equal(model.Output, string.Concat(model.OutputSegments.Select(s => s.Text)));
+        session.Receive("\u0002new line\u000F");
+        Assert.EndsWith("HP> new line", model.Output);
+        Assert.Equal(model.Output, string.Concat(model.OutputSegments.Select(s => s.Text)));
+    }
+
     private static QuasselMessage Message(string text, QuasselMessageFlags flags = QuasselMessageFlags.None) => new(
         new MsgId(1), DateTimeOffset.Now,
         new QuasselBufferInfo(new BufferId(1), new NetworkId(1), QuasselBufferType.Query, 0, "openmud"),

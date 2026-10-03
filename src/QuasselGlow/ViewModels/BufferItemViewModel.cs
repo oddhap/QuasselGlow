@@ -45,6 +45,8 @@ public sealed partial class BufferItemViewModel : ViewModelBase
         _displayName = bufferInfo.BufferName;
     }
 
+    public IReadOnlyList<MessageTextSegment> TopicSegments { get; private set; } = [];
+
     public QuasselBufferInfo BufferInfo { get; private set; }
     public ObservableCollection<MessageItemViewModel> Messages { get; } = [];
     public ObservableCollection<ChannelUserViewModel> ChannelUsers { get; } = [];
@@ -198,13 +200,32 @@ public sealed partial class BufferItemViewModel : ViewModelBase
         }
 
         _latestTopicMessageOrder = messageOrder;
-        SetChannelTopic(cleanedTopic);
+        var runs = IrcTextFormatter.Parse(message.Contents);
+        var plain = string.Concat(runs.Select(run => run.Text));
+        var start = plain.LastIndexOf(cleanedTopic, StringComparison.Ordinal);
+        var end = start + cleanedTopic.Length;
+        var offset = 0;
+        var topicRuns = new List<IrcTextRun>();
+        foreach (var run in runs)
+        {
+            var first = Math.Max(0, start - offset);
+            var last = Math.Min(run.Text.Length, end - offset);
+            if (last > first) topicRuns.Add(new(run.Text[first..last], run.Style));
+            offset += run.Text.Length;
+        }
+        SetTopicRuns(topicRuns);
     }
 
     public void SetChannelTopic(string topic)
     {
-        var cleanedTopic = IrcFormattingCleaner.Clean(topic).Trim();
-        ChannelTopic = cleanedTopic;
+        SetTopicRuns(IrcTextFormatter.Parse(topic.Trim()));
+    }
+
+    private void SetTopicRuns(IReadOnlyList<IrcTextRun> runs)
+    {
+        TopicSegments = MessageTextSegment.FromRuns(runs);
+        ChannelTopic = string.Concat(runs.Select(run => run.Text)).Trim();
+        OnPropertyChanged(nameof(TopicSegments));
     }
 
     public void ApplyChannelState(QuasselChannelState state)

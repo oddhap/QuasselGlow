@@ -68,6 +68,8 @@ and **Decline** in both interfaces. For OpenMUD, send `!play` in its IRC query,
 then accept the new offer before the bot expires it. The game opens in a separate
 window. Press Enter to send a command and use Up/Down to recall command history.
 Blank lines and commands beginning with `/` are sent directly to the game.
+Long lines wrap to fit the window. `!login` and `/login` arguments are masked in
+the local transcript and these commands are excluded from command history.
 Closing the game window or choosing Disconnect closes its socket. Changing the
 IRC layout keeps the game connection open.
 
@@ -75,7 +77,9 @@ The connection runs from the desktop directly to the offered IP and port, withou
 routing through the Quassel core. DCC CHAT is unencrypted, and the peer sees the
 desktop's IP address. Offers are never accepted automatically, and historical
 backlog offers cannot be accepted. Chat output supports UTF-8, preserves maps and
-partial prompts, and removes terminal escape commands. This is a text chat window,
+partial prompts, renders IRC colors and text styles, and removes terminal escape
+commands. IRC messages and channel topics use the same formatting parser in both
+layouts; sidebar previews use plain text. This is a text chat window,
 not a full ANSI/telnet terminal; ANSI colours and cursor control are not rendered.
 
 This implementation accepts active CHAT offers using numeric IPv4, dotted IPv4
@@ -182,17 +186,31 @@ Recent desktop polish includes persisted themes with dark mode, wallpaper-matche
 
 ## Recent Release Notes
 
-The `v0.3.2` update adds incoming DCC CHAT support for MUD games and direct
-conversations, with explicit acceptance, a separate game window, command history,
-and partial prompt display. It also corrects the interface names: the flat IRC
-layout is Classic and the card layout is Modern. Both interfaces now use the same
-pastel nickname colours in chat and the user list, with existing layout preferences
-preserved.
+The `v0.3.3` update fixes text rendering in both interfaces and DCC. IRC colors
+(including extended and hex colors), bold, italics, underline, strikethrough,
+monospace and reverse colors are rendered in messages and channel topics.
+Sidebar previews remain plain text, and formatted links stay clickable.
+DCC color codes split across network reads are handled correctly, long lines wrap
+to the window, and `!login` / `/login` arguments are masked in the local transcript
+and excluded from command history.
+Nickname colors are generated and reserved per nickname instead of repeating a
+12-color palette. They remain pastel and match between messages and the roster
+in both layouts and themes throughout the session. Release downloads include
+native icon assets; macOS app bundles contain the icon referenced by their plist.
 
-All 137 tests pass. The DCC connection has been tested with a local TCP server and
-both interfaces have been checked in an isolated GUI test. A live OpenMUD session
-has not been verified. See the DCC CHAT section above for protocol and core
-compatibility limits.
+The `v0.3.2` update added incoming DCC CHAT support with explicit acceptance,
+a separate game window, command history and partial prompts. It also corrected
+the interface names: the flat IRC layout is Classic and the card layout is Modern.
+Both interfaces use the same pastel nickname colors in chat and the user list,
+with existing layout preferences preserved.
+
+All 152 application tests and 6 protocol tests pass, including uniqueness checks
+for 4,096 nicknames in both themes. The DCC connection has been tested with a local TCP server,
+and both interfaces and the minimum-width game window have been checked in an
+isolated GUI test. A live OpenMUD session verified login, stats, looking, the map,
+and movement out of town and back. The attack command returned the game's normal
+response that no fight was available there; combat itself was not exercised.
+See the DCC CHAT section above for protocol and core compatibility limits.
 
 ## Notes
 

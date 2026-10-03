@@ -84,6 +84,37 @@ public sealed class MessageItemViewModelTests
         Assert.Equal("\u2413", viewModel.Segments[0].Text);
     }
 
+    [Fact]
+    public void FormattedLinksRemainClickableEvenWhenStyleChangesInsideTheUrl()
+    {
+        var model = new MessageItemViewModel(CreateMessage("\u0002See https://exam\u001Dple.com\u000F now"));
+        Assert.Equal("See https://example.com now", model.LineText);
+        Assert.Equal(model.LineText, string.Concat(model.Segments.Select(s => s.Text)));
+        var links = model.Segments.Where(s => s.IsLink).ToArray();
+        Assert.Equal(2, links.Length);
+        Assert.All(links, s => Assert.Equal("https://example.com", s.Url));
+        Assert.True(links[0].Style.Bold);
+        Assert.True(links[1].Style.Italic);
+        Assert.False(model.Segments[^1].Style.Bold);
+    }
+
+    [Fact]
+    public void StatusMessagesKeepFormattingInReasonsAndCleanPreviewText()
+    {
+        var message = CreateMessage("\u000304\u0002Goodbye\u000F", QuasselMessageType.Part);
+        var model = new MessageItemViewModel(message);
+        Assert.Equal("alice (user@example) has left #quassel (Goodbye)", model.LineText);
+        Assert.Contains(model.Segments, s => s.Text == "Goodbye" && s.Style.Bold && s.Style.Foreground == "#FF0000");
+        var buffer = new BufferItemViewModel(message.BufferInfo);
+        buffer.AddMessage(message, false);
+        Assert.DoesNotContain('\u0003', buffer.LastMessagePreview);
+        Assert.DoesNotContain("04", buffer.LastMessagePreview);
+        buffer.SetChannelTopic("\u0002Welcome \u001Dhere\u000F");
+        Assert.Equal("Welcome here", buffer.ChannelTopic);
+        Assert.True(buffer.TopicSegments[0].Style.Bold);
+        Assert.True(buffer.TopicSegments[1].Style.Italic);
+    }
+
     private static QuasselMessage CreateMessage(
         string contents,
         QuasselMessageType type = QuasselMessageType.Plain,

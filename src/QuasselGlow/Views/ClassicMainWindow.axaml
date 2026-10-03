@@ -770,7 +770,7 @@
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1"
-                                               Text="{Binding SelectedBufferSubtitleText}"
+                                               controls:MessageInlineRenderer.Segments="{Binding SelectedBufferSubtitleSegments}"
                                                Foreground="{StaticResource InkSoft}"
                                                IsVisible="{Binding ShowSelectedBufferSubtitle}"
                                                TextTrimming="CharacterEllipsis"

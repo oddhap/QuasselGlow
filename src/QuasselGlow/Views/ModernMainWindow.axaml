@@ -1239,7 +1239,7 @@
                                         <TextBlock Text="{Binding SelectedBufferHeadingText}"
                                                    FontSize="22"
                                                    FontWeight="Bold" />
-                                        <TextBlock Text="{Binding SelectedBufferSubtitleText}"
+                                        <TextBlock controls:MessageInlineRenderer.Segments="{Binding SelectedBufferSubtitleSegments}"
                                                    Foreground="{StaticResource InkSoft}"
                                                    IsVisible="{Binding ShowSelectedBufferSubtitle}"
                                                    TextTrimming="CharacterEllipsis" />

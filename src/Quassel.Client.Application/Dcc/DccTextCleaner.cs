@@ -1,4 +1,5 @@
 using System.Text;
+using Quassel.Client.Application.Text;
 
 namespace Quassel.Client.Application.Dcc;
 
@@ -7,8 +8,11 @@ public sealed class DccTextCleaner
 {
     private enum EscapeState { Text, Escape, Csi, String, StringEscape }
     private EscapeState _state;
+    private readonly IrcTextFormatter _formatter = new(showUnknownControls: false);
 
-    public string Clean(string text)
+    public string Clean(string text) => string.Concat(CleanRuns(text).Select(run => run.Text));
+
+    public IReadOnlyList<IrcTextRun> CleanRuns(string text)
     {
         var result = new StringBuilder(text.Length);
         foreach (var character in text)
@@ -38,11 +42,11 @@ public sealed class DccTextCleaner
                     break;
                 default:
                     if (character == '\x1B') _state = EscapeState.Escape;
-                    else if (character is '\n' or '\t' || !char.IsControl(character)) result.Append(character);
+                    else if (character is '\n' or '\t' or '\x02' or '\x03' or '\x04' or '\x0F' or '\x11' or '\x12' or '\x16' or '\x1D' or '\x1E' or '\x1F' || !char.IsControl(character)) result.Append(character);
                     break;
             }
         }
 
-        return result.ToString();
+        return _formatter.Feed(result.ToString());
     }
 }

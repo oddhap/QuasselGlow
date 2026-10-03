@@ -199,8 +199,15 @@ function New-MacIcon {
         [string]$AppName
     )
 
+    $iconPath = Join-Path $ResourcesDirectory "$AppName.icns"
+    $bundledIcon = Join-Path $IconsDirectory "$AppName.icns"
+    if (Test-Path $bundledIcon) {
+        Copy-Item -LiteralPath $bundledIcon -Destination $iconPath -Force
+        return $iconPath
+    }
+
     if (-not (Test-IsMacOSHost) -or -not (Test-CommandAvailable -Name "iconutil")) {
-        return $null
+        throw "A macOS app requires $bundledIcon or iconutil on a macOS build host."
     }
 
     $requiredSourceFiles = @(
@@ -214,7 +221,7 @@ function New-MacIcon {
 
     foreach ($file in $requiredSourceFiles) {
         if (-not (Test-Path (Join-Path $IconsDirectory $file))) {
-            return $null
+            throw "Required icon source is missing: $file"
         }
     }
 
@@ -238,7 +245,6 @@ function New-MacIcon {
         Copy-Item -LiteralPath (Join-Path $IconsDirectory $entry.Value) -Destination (Join-Path $iconSetDirectory $entry.Key) -Force
     }
 
-    $iconPath = Join-Path $ResourcesDirectory "$AppName.icns"
     Invoke-External -FilePath "iconutil" -Arguments @(
         "-c", "icns",
         $iconSetDirectory,
@@ -419,6 +425,9 @@ foreach ($runtimeIdentifier in $RuntimeIdentifiers) {
     New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
 
     Publish-SingleFile -ProjectPath $projectPath -Configuration $Configuration -RuntimeIdentifier $runtimeIdentifier -OutputDirectory $publishDirectory
+
+    # Keep native icon assets in every download as well as in the Avalonia resources.
+    Copy-Item -LiteralPath $iconsDirectory -Destination (Join-Path $publishDirectory "Icons") -Recurse -Force
 
     if ($runtimeIdentifier.StartsWith("osx-", [System.StringComparison]::OrdinalIgnoreCase)) {
         $bundleDirectory = Join-Path $stagingRoot "$runtimeIdentifier-bundle"

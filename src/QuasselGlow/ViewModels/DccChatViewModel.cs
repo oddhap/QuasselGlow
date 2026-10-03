@@ -15,6 +15,8 @@ public sealed partial class DccChatViewModel : ViewModelBase, IAsyncDisposable
     private readonly bool _marshalToUiThread;
     private readonly DccTextCleaner _cleaner = new();
     private readonly List<string> _history = [];
+    private readonly List<MessageTextSegment> _outputSegments = [];
+    public IReadOnlyList<MessageTextSegment> OutputSegments { get; private set; } = [];
     private int _historyIndex;
     private string _savedDraft = string.Empty;
     private DccChatState _state;
@@ -69,11 +71,14 @@ public sealed partial class DccChatViewModel : ViewModelBase, IAsyncDisposable
             await _session.SendLineAsync(text);
             RunOnUiThread(() =>
             {
-                AppendOutput($"{(Output.EndsWith('\n') || Output.Length == 0 ? "" : "\n")}> {text}\n");
+                var sensitive = IsSensitiveCommand(text);
+                var echo = sensitive ? text.TrimStart().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0] + " ••••" : text;
+                AppendOutput($"{(Output.EndsWith('\n') || Output.Length == 0 ? "" : "\n")}> {echo}\n");
                 if (Draft == text) Draft = string.Empty;
-                if (text.Length > 0 && (_history.Count == 0 || _history[^1] != text)) _history.Add(text);
+                if (!sensitive && text.Length > 0 && (_history.Count == 0 || _history[^1] != text)) _history.Add(text);
                 if (_history.Count > 100) _history.RemoveAt(0);
                 _historyIndex = _history.Count;
+                _savedDraft = string.Empty;
             });
         }
         catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException
@@ -96,7 +101,7 @@ public sealed partial class DccChatViewModel : ViewModelBase, IAsyncDisposable
         if (previous)
         {
             if (_historyIndex == 0) return false;
-            if (_historyIndex == _history.Count) _savedDraft = Draft;
+            if (_historyIndex == _history.Count) _savedDraft = IsSensitiveCommand(Draft) ? string.Empty : Draft;
             Draft = _history[--_historyIndex];
         }
         else
@@ -108,7 +113,18 @@ public sealed partial class DccChatViewModel : ViewModelBase, IAsyncDisposable
         return true;
     }
 
-    private void OnTextReceived(string text) => RunOnUiThread(() => AppendOutput(_cleaner.Clean(text)));
+    private static bool IsSensitiveCommand(string text)
+    {
+        var command = text.TrimStart().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        return command is not null && (command.Equals("!login", StringComparison.OrdinalIgnoreCase)
+            || command.Equals("/login", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void OnTextReceived(string text) => RunOnUiThread(() =>
+    {
+        var runs = _cleaner.CleanRuns(text);
+        AppendOutput(string.Concat(runs.Select(run => run.Text)), MessageTextSegment.FromRuns(runs));
+    });
 
     private void OnStateChanged(DccChatState state, string? detail) => RunOnUiThread(() =>
     {
@@ -123,17 +139,27 @@ public sealed partial class DccChatViewModel : ViewModelBase, IAsyncDisposable
 
     private void OnLanguageChanged(object? sender, EventArgs e) => OnPropertyChanged(nameof(StatusText));
 
-    private void AppendOutput(string text)
+    private void AppendOutput(string text, IEnumerable<MessageTextSegment>? segments = null)
     {
         if (text.Length == 0) return;
+        _outputSegments.AddRange(segments ?? [new MessageTextSegment(text)]);
         var output = Output + text;
         if (output.Length > MaxOutputLength)
         {
             var start = output.Length - MaxOutputLength;
             // Keep complete lines when truncating the scrollback where possible.
             var nextLine = output.IndexOf('\n', start);
-            output = output[(nextLine >= 0 ? nextLine + 1 : start)..];
+            var trim = nextLine >= 0 ? nextLine + 1 : start;
+            output = output[trim..];
+            while (trim > 0 && _outputSegments.Count > 0)
+            {
+                var first = _outputSegments[0];
+                if (first.Text.Length <= trim) { trim -= first.Text.Length; _outputSegments.RemoveAt(0); }
+                else { _outputSegments[0] = new(first.Text[trim..], first.Url, first.Style); trim = 0; }
+            }
         }
+        OutputSegments = _outputSegments.ToArray();
+        OnPropertyChanged(nameof(OutputSegments));
         Output = output;
     }
 

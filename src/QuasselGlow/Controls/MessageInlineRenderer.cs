@@ -49,20 +49,34 @@ public sealed class MessageInlineRenderer
 
         foreach (var segment in segments ?? Array.Empty<MessageTextSegment>())
         {
+            var run = new Run(segment.Text);
+            var style = segment.Style;
+            if (style.Bold) run.FontWeight = FontWeight.Bold;
+            if (style.Italic) run.FontStyle = FontStyle.Italic;
+            if (style.Monospace && Avalonia.Application.Current?.TryFindResource("MonoFontFamily", out var mono) == true && mono is FontFamily font)
+                run.FontFamily = font;
+            var decorations = new TextDecorationCollection();
+            if (style.Underline || segment.IsLink) decorations.Add(TextDecorations.Underline[0]);
+            if (style.Strikethrough) decorations.Add(TextDecorations.Strikethrough[0]);
+            if (decorations.Count > 0) run.TextDecorations = decorations;
+            if (style.Foreground is { } foreground) run.Foreground = Brush.Parse(foreground);
+            if (style.Background is { } background) run.Background = Brush.Parse(background);
+            if (style.Reverse)
+            {
+                var ink = run.Foreground ?? textBlock.Foreground;
+                var paper = run.Background;
+                if (paper is null && Avalonia.Application.Current?.TryFindResource("ShellPanel", out var panel) == true)
+                    paper = panel as IBrush;
+                run.Foreground = paper ?? Brushes.White;
+                run.Background = ink ?? Brushes.Black;
+            }
             if (segment.IsLink && Uri.TryCreate(segment.Url, UriKind.Absolute, out var uri))
             {
-                var linkRun = new Run(segment.Text)
-                {
-                    TextDecorations = TextDecorations.Underline
-                };
-                linkRun.Classes.Add("messageLink");
-                inlines.Add(linkRun);
+                // Explicit IRC colors take precedence over the normal link color.
+                if (style.Foreground is null && !style.Reverse) run.Classes.Add("messageLink");
                 linkRanges.Add(new LinkRange(currentIndex, segment.Text.Length, uri));
             }
-            else
-            {
-                inlines.Add(new Run(segment.Text));
-            }
+            inlines.Add(run);
 
             currentIndex += segment.Text.Length;
         }
