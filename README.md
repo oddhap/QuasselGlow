@@ -34,6 +34,7 @@ QuasselGlow is an early-stage project. The current build includes:
 - Local buffer history cache with incremental catch-up on reconnect
 - Message sending
 - Clickable links in chat messages
+- Incoming DCC CHAT offers with a dedicated direct-chat window for games and conversations
 - Quassel-style per-buffer input history and draft recall
 - Nick autocomplete in channels with repeated `Tab` cycling through matches
 - Automatic reconnect to the remembered server on startup
@@ -59,6 +60,31 @@ The earlier card-based layout is available as the **Modern interface**. The flat
 Both interfaces use stable pastel nickname colours in the message log and user list. Each nickname keeps the same colour across channels and layouts, with lighter shades in dark mode and muted pastel shades in light mode.
 
 See [docs/GUI_REDESIGN.md](docs/GUI_REDESIGN.md) for the full design notes and [docs/gui-proposals.html](docs/gui-proposals.html) for the design directions that were considered.
+
+## DCC CHAT and MUD games
+
+Incoming active `DCC CHAT chat <address> <port>` offers show **Accept DCC chat**
+and **Decline** in both interfaces. For OpenMUD, send `!play` in its IRC query,
+then accept the new offer before the bot expires it. The game opens in a separate
+window. Press Enter to send a command and use Up/Down to recall command history.
+Blank lines and commands beginning with `/` are sent directly to the game.
+Closing the game window or choosing Disconnect closes its socket. Changing the
+IRC layout keeps the game connection open.
+
+The connection runs from the desktop directly to the offered IP and port, without
+routing through the Quassel core. DCC CHAT is unencrypted, and the peer sees the
+desktop's IP address. Offers are never accepted automatically, and historical
+backlog offers cannot be accepted. Chat output supports UTF-8, preserves maps and
+partial prompts, and removes terminal escape commands. This is a text chat window,
+not a full ANSI/telnet terminal; ANSI colours and cursor control are not rendered.
+
+This implementation accepts active CHAT offers using numeric IPv4, dotted IPv4
+or IPv6 addresses. It does not initiate outgoing offers, transfer files, or
+negotiate passive/reverse DCC (port zero). It requires the offer payload to reach
+the client. Some Quassel cores consume CTCP requests and display only “Received
+unknown CTCP-DCC request” without the endpoint; the client cannot recover the
+address and port when the core discards them. See the
+[Quassel core event stringifier](https://github.com/quassel/quassel/blob/master/src/core/eventstringifier.cpp).
 
 ## Tech Stack
 
@@ -156,9 +182,17 @@ Recent desktop polish includes persisted themes with dark mode, wallpaper-matche
 
 ## Recent Release Notes
 
-The `v0.2.13` update adds optional chat date separators, defaults the display language to the operating system, shows the app version in settings, and makes unknown IRC control characters visible instead of silently dropping them.
+The `v0.3.2` update adds incoming DCC CHAT support for MUD games and direct
+conversations, with explicit acceptance, a separate game window, command history,
+and partial prompt display. It also corrects the interface names: the flat IRC
+layout is Classic and the card layout is Modern. Both interfaces now use the same
+pastel nickname colours in chat and the user list, with existing layout preferences
+preserved.
 
-This release also updates the project to .NET SDK 10.0.302, Avalonia 12.1.0, Microsoft.NET.Test.Sdk 18.8.1, and System.Security.Cryptography.ProtectedData 10.0.10.
+All 137 tests pass. The DCC connection has been tested with a local TCP server and
+both interfaces have been checked in an isolated GUI test. A live OpenMUD session
+has not been verified. See the DCC CHAT section above for protocol and core
+compatibility limits.
 
 ## Notes
 

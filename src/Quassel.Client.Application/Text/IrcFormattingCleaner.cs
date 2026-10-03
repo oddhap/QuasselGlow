@@ -4,7 +4,7 @@ namespace Quassel.Client.Application.Text;
 
 public static class IrcFormattingCleaner
 {
-    public static string Clean(string? input)
+    public static string Clean(string? input, bool preserveCtcpDelimiter = false)
     {
         if (string.IsNullOrEmpty(input))
         {
@@ -18,6 +18,9 @@ public static class IrcFormattingCleaner
             var current = input[index];
             switch (current)
             {
+                case '\x01' when preserveCtcpDelimiter:
+                    builder.Append(current);
+                    break;
                 case '\x02':
                 case '\x0F':
                 case '\x11':

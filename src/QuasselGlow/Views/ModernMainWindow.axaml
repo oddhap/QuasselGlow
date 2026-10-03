@@ -1287,6 +1287,7 @@
                                                     Classes.self="{Binding IsSelf}"
                                                     Classes.highlight="{Binding IsHighlight}"
                                                     Classes.status="{Binding IsStatus}">
+                                                <StackPanel Spacing="6">
                                                 <Grid ColumnDefinitions="48,Auto,*"
                                                       ColumnSpacing="8"
                                                       Margin="0,1,0,0">
@@ -1308,6 +1309,19 @@
                                                                          controls:MessageInlineRenderer.Segments="{Binding Segments}"
                                                                          TextWrapping="Wrap" />
                                                 </Grid>
+                                                    <StackPanel IsVisible="{Binding HasDccChatOffer}" Margin="56,0,0,0" Spacing="6">
+                                                        <TextBlock Text="{Binding #RootWindow.DataContext.Strings[DccOfferHint]}"
+                                                                   Foreground="{StaticResource InkSoft}" FontSize="12" TextWrapping="Wrap" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding CanAcceptDccChat}">
+                                                            <Button Content="{Binding #RootWindow.DataContext.Strings[DccAccept]}"
+                                                                    Command="{Binding #RootWindow.DataContext.AcceptDccChatCommand}"
+                                                                    CommandParameter="{Binding}" />
+                                                            <Button Content="{Binding #RootWindow.DataContext.Strings[DccDecline]}"
+                                                                    Command="{Binding #RootWindow.DataContext.DeclineDccChatCommand}"
+                                                                    CommandParameter="{Binding}" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </StackPanel>
                                             </Border>
                                         </StackPanel>
                                     </DataTemplate>

@@ -246,6 +246,7 @@ public sealed class UiTextCatalog : ObservableObject
         AddEasternPacks(packs);
         AddAsianPacks(packs);
         AddModernUiExtensions(packs);
+        AddDccUiExtensions(packs);
         AddFallbackAliases(packs);
         return packs;
     }
@@ -2252,6 +2253,33 @@ public sealed class UiTextCatalog : ObservableObject
                 packs[code] = packs["en_US"];
             }
         }
+    }
+
+    private static void AddDccUiExtensions(IDictionary<string, IReadOnlyDictionary<string, string>> packs)
+    {
+        var english = Pack(
+            ("DccAccept", "Accept DCC chat"),
+            ("DccDecline", "Decline"),
+            ("DccOfferHint", "Direct, unencrypted chat. Accepting shares your IP address with this peer."),
+            ("DccConnecting", "Connecting to DCC chat…"),
+            ("DccConnected", "DCC chat connected"),
+            ("DccDisconnected", "DCC chat disconnected. Request a new offer to reconnect."),
+            ("DccFailed", "Could not connect: {0} Request a new DCC offer and try again."),
+            ("DccSendFailed", "Could not send: {0}"),
+            ("DccDisconnect", "Disconnect"),
+            ("DccInput", "Enter a game command…"));
+        foreach (var code in SupportedLanguageCodes) ExtendPack(packs, code, english);
+        ExtendPack(packs, "nb", Pack(
+            ("DccAccept", "Godta DCC-chat"),
+            ("DccDecline", "Avslå"),
+            ("DccOfferHint", "Direkte, ukryptert chat. Når du godtar, deles IP-adressen din med motparten."),
+            ("DccConnecting", "Kobler til DCC-chat…"),
+            ("DccConnected", "DCC-chat er tilkoblet"),
+            ("DccDisconnected", "DCC-chat er frakoblet. Be om et nytt tilbud for å koble til igjen."),
+            ("DccFailed", "Kunne ikke koble til: {0} Be om et nytt DCC-tilbud og prøv igjen."),
+            ("DccSendFailed", "Kunne ikke sende: {0}"),
+            ("DccDisconnect", "Koble fra"),
+            ("DccInput", "Skriv en spillkommando…")));
     }
 
     private static void AddModernUiExtensions(IDictionary<string, IReadOnlyDictionary<string, string>> packs)

@@ -9,6 +9,39 @@ namespace Quassel.Client.Application.Tests;
 
 public sealed class MainWindowViewModelTests
 {
+    [Fact]
+    public async Task DccOffer_RequiresAcceptance_AndIsNotSentToIrc()
+    {
+        var session = new FakeSessionService();
+        await using var viewModel = new MainWindowViewModel(session,
+            new FakeSettingsStore(new StoredConnectionSettings()), marshalToUiThread: false);
+        var offers = new List<DccChatOffer>();
+        viewModel.DccChatRequested += offers.Add;
+        var info = new QuasselBufferInfo(new BufferId(1), new NetworkId(1), QuasselBufferType.Query, 0, "openmud");
+        var message = new QuasselMessage(new MsgId(1), DateTimeOffset.Now, info,
+            QuasselMessageType.Plain, "\u0001DCC CHAT chat 1557997490 5060\u0001", "openmud!user@host", QuasselMessageFlags.None);
+        session.EmitSessionState(new QuasselSessionState([], [info], [new NetworkId(1)]));
+        session.EmitMessage(message);
+        var offerMessage = Assert.Single(viewModel.SelectedBuffer!.Messages);
+        Assert.True(offerMessage.CanAcceptDccChat);
+        Assert.Empty(offers);
+
+        viewModel.AcceptDccChatCommand.Execute(offerMessage);
+        viewModel.AcceptDccChatCommand.Execute(offerMessage);
+        Assert.Single(offers);
+        Assert.Equal("92.221.39.178:5060", offers[0].Endpoint);
+        Assert.False(offerMessage.CanAcceptDccChat);
+        Assert.Empty(session.SentInputs);
+
+        var declined = new MessageItemViewModel(message);
+        viewModel.DeclineDccChatCommand.Execute(declined);
+        viewModel.AcceptDccChatCommand.Execute(declined);
+        var backlog = new MessageItemViewModel(message with { Flags = QuasselMessageFlags.Backlog });
+        viewModel.AcceptDccChatCommand.Execute(backlog);
+        Assert.Single(offers);
+        Assert.Empty(session.SentInputs);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

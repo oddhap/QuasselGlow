@@ -10,6 +10,7 @@ using Avalonia.Threading;
 using QuasselGlow.Appearance;
 using QuasselGlow.ViewModels;
 using QuasselGlow.Views;
+using Quassel.Client.Domain;
 
 namespace QuasselGlow;
 
@@ -19,6 +20,7 @@ public partial class App : Avalonia.Application
     private MainWindowViewModel? _mainWindowViewModel;
     private MainWindowBase? _mainWindow;
     private bool _isSwitchingLayout;
+    private readonly List<DccChatWindow> _dccChatWindows = [];
 
     public static App? CurrentApp => Application.Current as App;
 
@@ -34,6 +36,12 @@ public partial class App : Avalonia.Application
             _mainWindowViewModel = new MainWindowViewModel();
             ApplyAppearance(_mainWindowViewModel.SelectedThemeKey, _mainWindowViewModel.SelectedThemeModeKey);
             _mainWindowViewModel.PropertyChanged += OnMainWindowViewModelPropertyChanged;
+            _mainWindowViewModel.DccChatRequested += OpenDccChat;
+            desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
+            desktop.Exit += (_, _) =>
+            {
+                foreach (var window in _dccChatWindows.ToArray()) window.Close();
+            };
 
             _mainWindow = CreateMainWindow(_mainWindowViewModel.UseModernLayout);
             _mainWindow.DataContext = _mainWindowViewModel;
@@ -46,6 +54,15 @@ public partial class App : Avalonia.Application
     private static MainWindowBase CreateMainWindow(bool useModernLayout)
     {
         return useModernLayout ? new ModernMainWindow() : new ClassicMainWindow();
+    }
+
+    private void OpenDccChat(DccChatOffer offer)
+    {
+        var window = new DccChatWindow { DataContext = new DccChatViewModel(offer) };
+        _dccChatWindows.Add(window);
+        window.Closed += (_, _) => _dccChatWindows.Remove(window);
+        // No owner: changing the IRC layout must not close an active game session.
+        window.Show();
     }
 
     private void OnMainWindowViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

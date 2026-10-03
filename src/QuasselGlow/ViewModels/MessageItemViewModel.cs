@@ -4,6 +4,7 @@ using Quassel.Client.Domain;
 using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using QuasselGlow.Appearance;
+using Quassel.Client.Application.Dcc;
 
 namespace QuasselGlow.ViewModels;
 
@@ -33,19 +34,32 @@ public sealed class MessageItemViewModel : ViewModelBase
     private bool _isDaySeparatorVisible;
     private string _daySeparatorText = string.Empty;
     private bool _isDarkMode;
+    private bool _dccOfferHandled;
 
     public MessageItemViewModel(QuasselMessage message)
     {
         Model = message;
+        DccOffer = DccChatOfferParser.Parse(message);
         var sender = ParseSender(message.Sender);
         TimestampText = message.Timestamp.ToLocalTime().ToString("HH:mm");
         var cleanedContents = IrcFormattingCleaner.Clean(message.Contents);
-        LineText = BuildLineText(message, sender, cleanedContents);
+        LineText = DccOffer is not null ? $"DCC CHAT · {DccOffer.Endpoint}" : BuildLineText(message, sender, cleanedContents);
         SenderDisplay = IsStatus ? string.Empty : sender.DisplayNick;
         Segments = BuildSegments(LineText);
     }
 
     public QuasselMessage Model { get; }
+    public DccChatOffer? DccOffer { get; }
+    public bool HasDccChatOffer => DccOffer is not null;
+    public bool CanAcceptDccChat => HasDccChatOffer && !Model.IsBacklog && !_dccOfferHandled;
+
+    internal bool TryHandleDccOffer()
+    {
+        if (!CanAcceptDccChat) return false;
+        _dccOfferHandled = true;
+        OnPropertyChanged(nameof(CanAcceptDccChat));
+        return true;
+    }
     public long MessageOrder => Model.MessageId.Value;
     public string TimestampText { get; }
     public string SenderDisplay { get; }

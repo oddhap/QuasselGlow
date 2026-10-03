@@ -163,6 +163,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     }
 
     public UiTextCatalog Strings => _strings;
+    public event Action<DccChatOffer>? DccChatRequested;
+
+    [RelayCommand]
+    private void AcceptDccChat(MessageItemViewModel? message)
+    {
+        if (DccChatRequested is not null && message?.TryHandleDccOffer() == true)
+        {
+            DccChatRequested.Invoke(message.DccOffer!);
+        }
+    }
+
+    [RelayCommand]
+    private void DeclineDccChat(MessageItemViewModel? message) => message?.TryHandleDccOffer();
 
     public string VersionText => $"v{typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0"}";
 
