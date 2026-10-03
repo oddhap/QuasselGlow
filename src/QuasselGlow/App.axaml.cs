@@ -35,7 +35,7 @@ public partial class App : Avalonia.Application
             ApplyAppearance(_mainWindowViewModel.SelectedThemeKey, _mainWindowViewModel.SelectedThemeModeKey);
             _mainWindowViewModel.PropertyChanged += OnMainWindowViewModelPropertyChanged;
 
-            _mainWindow = CreateMainWindow(_mainWindowViewModel.UseClassicLayout);
+            _mainWindow = CreateMainWindow(_mainWindowViewModel.UseModernLayout);
             _mainWindow.DataContext = _mainWindowViewModel;
             desktop.MainWindow = _mainWindow;
         }
@@ -43,14 +43,14 @@ public partial class App : Avalonia.Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private static MainWindowBase CreateMainWindow(bool useClassicLayout)
+    private static MainWindowBase CreateMainWindow(bool useModernLayout)
     {
-        return useClassicLayout ? new ClassicMainWindow() : new MainWindow();
+        return useModernLayout ? new ModernMainWindow() : new ClassicMainWindow();
     }
 
     private void OnMainWindowViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(MainWindowViewModel.UseClassicLayout))
+        if (e.PropertyName != nameof(MainWindowViewModel.UseModernLayout))
         {
             return;
         }
@@ -67,8 +67,8 @@ public partial class App : Avalonia.Application
             return;
         }
 
-        var useClassicLayout = _mainWindowViewModel.UseClassicLayout;
-        var expectedType = useClassicLayout ? typeof(ClassicMainWindow) : typeof(MainWindow);
+        var useModernLayout = _mainWindowViewModel.UseModernLayout;
+        var expectedType = useModernLayout ? typeof(ModernMainWindow) : typeof(ClassicMainWindow);
         if (_mainWindow is not null && _mainWindow.GetType() == expectedType)
         {
             return;
@@ -78,7 +78,7 @@ public partial class App : Avalonia.Application
         try
         {
             var oldWindow = _mainWindow;
-            var newWindow = CreateMainWindow(useClassicLayout);
+            var newWindow = CreateMainWindow(useModernLayout);
             newWindow.DataContext = _mainWindowViewModel;
 
             if (oldWindow is not null)

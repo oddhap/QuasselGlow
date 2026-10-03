@@ -9,6 +9,21 @@ namespace Quassel.Client.Application.Tests;
 
 public sealed class MainWindowViewModelTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ModernLayout_RetainsAndSavesLegacyLayoutPreference(bool useCardLayout)
+    {
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(UseClassicLayout: useCardLayout));
+        await using var viewModel = new MainWindowViewModel(new FakeSessionService(), settings, marshalToUiThread: false);
+
+        Assert.Equal(useCardLayout, viewModel.UseModernLayout);
+
+        viewModel.UseModernLayout = !useCardLayout;
+
+        Assert.Equal(!useCardLayout, settings.Load().Settings.UseClassicLayout);
+    }
+
     [Fact]
     public void StatusReceived_PreservesPrimaryConnectionStateAndUsesDetailText()
     {

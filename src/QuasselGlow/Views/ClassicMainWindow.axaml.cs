@@ -18,11 +18,6 @@ public partial class ClassicMainWindow : MainWindowBase
 
     protected override TextBox? ResolveComposerTextBox()
     {
-        if (MainComposerTextBox.IsVisible)
-        {
-            return MainComposerTextBox;
-        }
-
-        return CompactComposerTextBox.IsVisible ? CompactComposerTextBox : null;
+        return MainComposerTextBox.IsVisible ? MainComposerTextBox : null;
     }
 }

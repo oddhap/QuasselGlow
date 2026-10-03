@@ -112,7 +112,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     private bool _showDaySeparators = true;
 
     [ObservableProperty]
-    private bool _useClassicLayout = true;
+    private bool _useModernLayout = true;
 
     public MainWindowViewModel()
         : this(new QuasselSessionService(), new LocalConnectionSettingsStore())
@@ -1073,7 +1073,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         SaveSettingsIfReady();
     }
 
-    partial void OnUseClassicLayoutChanged(bool value)
+    partial void OnUseModernLayoutChanged(bool value)
     {
         SaveSettingsIfReady();
     }
@@ -1538,7 +1538,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         MinimizeToTrayEnabled = settings.MinimizeToTray;
         AutoReconnect = settings.AutoReconnect;
         ShowDaySeparators = settings.ShowDaySeparators;
-        UseClassicLayout = settings.UseClassicLayout;
+        // Keep the legacy stored flag so existing installations retain their layout.
+        UseModernLayout = settings.UseClassicLayout;
     }
 
     private void SaveSettings()
@@ -1559,7 +1560,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             MinimizeToTrayEnabled,
             AutoReconnect,
             ShowDaySeparators,
-            UseClassicLayout));
+            UseModernLayout));
 
         ApplyConnectionSettingsSaveResult(result);
     }

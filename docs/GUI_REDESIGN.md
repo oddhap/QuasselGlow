@@ -85,7 +85,7 @@ The status strip sits **above** the work area and the composer stays pinned to t
 
 ### Code changes
 
-- `src/QuasselGlow/Views/MainWindow.axaml`
+- `src/QuasselGlow/Views/ClassicMainWindow.axaml`
   - Rewritten to the flat three-column layout.
   - Settings and connection editors are now centred overlays instead of
     `Popup`s, so they work identically at every window size.
@@ -93,7 +93,7 @@ The status strip sits **above** the work area and the composer stays pinned to t
 - `src/QuasselGlow/Views/MainWindowBase.cs`
   - Shared window behaviour extracted from the code-behind: tray icon, chat
     auto-scroll, composer keys, window chrome and responsive layout.
-- `src/QuasselGlow/Views/ClassicMainWindow.axaml` / `.axaml.cs`
+- `src/QuasselGlow/Views/ModernMainWindow.axaml` / `.axaml.cs`
   - The previous card layout, restored as a second window for the toggle.
 - `src/QuasselGlow/App.axaml.cs`
   - Owns the shared view model and swaps the active window when the layout
@@ -121,20 +121,22 @@ continues to work. Only the default `glow` palette was neutralised:
 - Because the editors are overlays, they no longer depend on available height.
   The old low-resolution “Overview” screen is gone.
 
-## Classic layout toggle
+## Modern layout toggle
 
 The previous card-based interface is kept as a second window and can be selected
 at runtime:
 
 - The preference is stored as `UseClassicLayout` in the local connection settings
-  and defaults to `true`, so existing installations keep the classic layout.
-- The **Classic interface** checkbox in Settings switches layouts live. The app
+  and defaults to `true`. This legacy storage key now maps to `UseModernLayout`,
+  so existing installations retain their selected interface.
+- The **Modern interface** checkbox in Settings switches layouts live. The app
   creates the other window with the same `MainWindowViewModel`, transfers the
   window bounds, and closes the old window without disposing the view model, so
   the Quassel core session and all chat state survive the switch.
 - Both windows share behaviour through `MainWindowBase` (tray, chat auto-scroll,
   composer keys, window chrome); each layout only supplies its own named controls.
-- `MainWindow` hosts the flat layout and `ClassicMainWindow` hosts the card layout.
+- `ClassicMainWindow` hosts the flat IRC layout and `ModernMainWindow` hosts the
+  card layout. Both use the same pastel nickname palette in chat and the user list.
 
 ## Verification
 

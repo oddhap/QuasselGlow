@@ -10,44 +10,40 @@ public static class NickColorPalette
 {
     private static readonly Color[] LightColors =
     [
-        Color.Parse("#7B6BD9"),
-        Color.Parse("#0E7C7B"),
-        Color.Parse("#9C4F5E"),
-        Color.Parse("#4F6FA8"),
-        Color.Parse("#A9761A"),
-        Color.Parse("#5C7A3F"),
-        Color.Parse("#A8557F"),
-        Color.Parse("#4E7EA8"),
-        Color.Parse("#8A5A2B"),
-        Color.Parse("#3F7D6B"),
-        Color.Parse("#8A6E0B"),
-        Color.Parse("#6A5ACD")
+        // Muted pastels retain definition against the light chat background.
+        Color.Parse("#927CB8"),
+        Color.Parse("#599D98"),
+        Color.Parse("#C18192"),
+        Color.Parse("#759BCD"),
+        Color.Parse("#B19559"),
+        Color.Parse("#83A16E"),
+        Color.Parse("#B980AA"),
+        Color.Parse("#6D9FB8"),
+        Color.Parse("#BA906F"),
+        Color.Parse("#69A38C"),
+        Color.Parse("#A49A5A"),
+        Color.Parse("#9785C4")
     ];
 
     private static readonly Color[] DarkColors =
     [
-        Color.Parse("#B4A6F0"),
-        Color.Parse("#6FD8D4"),
-        Color.Parse("#E8A0AC"),
-        Color.Parse("#9DB8E8"),
-        Color.Parse("#E0B94B"),
-        Color.Parse("#A8CC8A"),
-        Color.Parse("#E8A6CF"),
-        Color.Parse("#96C8E8"),
-        Color.Parse("#D9AE7C"),
-        Color.Parse("#7FD1BC"),
-        Color.Parse("#D6C56A"),
-        Color.Parse("#B0A8F2")
+        Color.Parse("#C7B7ED"),
+        Color.Parse("#A1DDD8"),
+        Color.Parse("#F0B8C5"),
+        Color.Parse("#B6CEF1"),
+        Color.Parse("#EAD39C"),
+        Color.Parse("#C1DDA8"),
+        Color.Parse("#ECC0DF"),
+        Color.Parse("#B3DBEF"),
+        Color.Parse("#E6C3A5"),
+        Color.Parse("#ADE0CC"),
+        Color.Parse("#E2D8A4"),
+        Color.Parse("#C6BDF0")
     ];
 
-    public static IBrush Resolve(string? nick, bool isSelf, bool isDarkMode)
+    public static IBrush Resolve(string? nick, bool isDarkMode)
     {
         var colors = isDarkMode ? DarkColors : LightColors;
-
-        if (isSelf)
-        {
-            return new SolidColorBrush(colors[0]);
-        }
 
         if (string.IsNullOrWhiteSpace(nick))
         {

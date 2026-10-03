@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace QuasselGlow.Views;
 
-public partial class MainWindow : MainWindowBase
+public partial class ModernMainWindow : MainWindowBase
 {
-    public MainWindow()
+    public ModernMainWindow()
     {
         InitializeComponent();
         InitializeWindow();
@@ -18,6 +18,11 @@ public partial class MainWindow : MainWindowBase
 
     protected override TextBox? ResolveComposerTextBox()
     {
-        return MainComposerTextBox.IsVisible ? MainComposerTextBox : null;
+        if (MainComposerTextBox.IsVisible)
+        {
+            return MainComposerTextBox;
+        }
+
+        return CompactComposerTextBox.IsVisible ? CompactComposerTextBox : null;
     }
 }

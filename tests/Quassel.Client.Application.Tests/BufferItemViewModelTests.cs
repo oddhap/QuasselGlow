@@ -1,3 +1,4 @@
+using Avalonia.Media;
 using QuasselGlow.ViewModels;
 using Quassel.Client.Domain;
 
@@ -5,6 +6,38 @@ namespace Quassel.Client.Application.Tests;
 
 public sealed class BufferItemViewModelTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void NickColours_MatchChatAndUserListAcrossThemeAndRosterChanges(bool initiallyDark)
+    {
+        var info = new QuasselBufferInfo(new BufferId(1), new NetworkId(1), QuasselBufferType.Channel, 0, "#quassel");
+        var buffer = new BufferItemViewModel(info);
+        var message = new QuasselMessage(new MsgId(1), DateTimeOffset.Now, info,
+            QuasselMessageType.Plain, "Hello", "alice!user@example", QuasselMessageFlags.Self);
+        var state = new QuasselChannelState(new NetworkId(1), "#quassel", "",
+            [new QuasselChannelUser("ALICE", "o"), new QuasselChannelUser("bob", "")]);
+
+        buffer.ConfigureDarkMode(initiallyDark);
+        buffer.AddMessage(message, trackUnreadState: false);
+        buffer.ApplyChannelState(state);
+        var senderColour = Assert.IsAssignableFrom<ISolidColorBrush>(buffer.Messages[0].SenderBrush).Color;
+        Assert.Equal(senderColour, Assert.IsAssignableFrom<ISolidColorBrush>(buffer.ChannelUsers[0].NickBrush).Color);
+        Assert.NotEqual(senderColour, Assert.IsAssignableFrom<ISolidColorBrush>(buffer.ChannelUsers[1].NickBrush).Color);
+
+        var changedProperties = new List<string?>();
+        buffer.ChannelUsers[0].PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+        buffer.ConfigureDarkMode(!initiallyDark);
+        var updatedColour = Assert.IsAssignableFrom<ISolidColorBrush>(buffer.Messages[0].SenderBrush).Color;
+        Assert.NotEqual(senderColour, updatedColour);
+        Assert.Contains(nameof(ChannelUserViewModel.NickBrush), changedProperties);
+        Assert.Equal(updatedColour, Assert.IsAssignableFrom<ISolidColorBrush>(buffer.ChannelUsers[0].NickBrush).Color);
+
+        // Core roster refreshes create new rows; they must inherit the current theme.
+        buffer.ApplyChannelState(state);
+        Assert.Equal(updatedColour, Assert.IsAssignableFrom<ISolidColorBrush>(buffer.ChannelUsers[0].NickBrush).Color);
+    }
+
     [Fact]
     public void AddMessage_QueryBuffer_SetsPrivateMessageAlert()
     {

@@ -54,7 +54,7 @@ public sealed class MessageItemViewModel : ViewModelBase
     public bool HasSender => !string.IsNullOrWhiteSpace(SenderDisplay);
     public int MessageColumn => HasSender ? 2 : 1;
     public int MessageColumnSpan => HasSender ? 1 : 2;
-    public IBrush SenderBrush => NickColorPalette.Resolve(SenderDisplay, IsSelf, _isDarkMode);
+    public IBrush SenderBrush => NickColorPalette.Resolve(SenderDisplay, _isDarkMode);
     public bool IsSelf => Model.IsSelf;
     public bool IsHighlight => Model.IsHighlight;
     public bool IsStatus => IsStatusMessage(Model);

@@ -145,6 +145,11 @@ public sealed partial class BufferItemViewModel : ViewModelBase
         {
             message.SetDarkMode(isDarkMode);
         }
+
+        foreach (var user in ChannelUsers)
+        {
+            user.SetDarkMode(isDarkMode);
+        }
     }
 
     partial void OnUnreadCountChanged(int value)
@@ -223,6 +228,7 @@ public sealed partial class BufferItemViewModel : ViewModelBase
         ChannelUsers.Clear();
         foreach (var user in sortedUsers)
         {
+            user.SetDarkMode(_isDarkMode);
             ChannelUsers.Add(user);
         }
 

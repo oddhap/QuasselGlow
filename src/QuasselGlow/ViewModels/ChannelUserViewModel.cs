@@ -1,10 +1,13 @@
+using Avalonia.Media;
 using Quassel.Client.Domain;
+using QuasselGlow.Appearance;
 
 namespace QuasselGlow.ViewModels;
 
 public sealed class ChannelUserViewModel : ViewModelBase
 {
     private const string KnownModePriority = "qaohv";
+    private bool _isDarkMode;
 
     public ChannelUserViewModel(QuasselChannelUser model)
     {
@@ -14,6 +17,18 @@ public sealed class ChannelUserViewModel : ViewModelBase
     public QuasselChannelUser Model { get; }
 
     public string Nick => Model.Nick;
+    public IBrush NickBrush => NickColorPalette.Resolve(Nick, _isDarkMode);
+
+    internal void SetDarkMode(bool isDarkMode)
+    {
+        if (_isDarkMode == isDarkMode)
+        {
+            return;
+        }
+
+        _isDarkMode = isDarkMode;
+        OnPropertyChanged(nameof(NickBrush));
+    }
 
     public string Modes => Model.Modes;
 

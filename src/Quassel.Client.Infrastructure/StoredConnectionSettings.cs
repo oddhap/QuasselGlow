@@ -16,4 +16,5 @@ public sealed record StoredConnectionSettings(
     bool MinimizeToTray = false,
     bool AutoReconnect = false,
     bool ShowDaySeparators = true,
+    // Legacy name: true selects the card-based interface, now called Modern.
     bool UseClassicLayout = true);
