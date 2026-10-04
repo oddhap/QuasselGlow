@@ -532,7 +532,7 @@ public sealed class MainWindowViewModelTests
     public void PlatformAndInspiredThemes_AppearWithDisplayNames()
     {
         var session = new FakeSessionService();
-        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice"));
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(Host: "chat.example", Username: "alice", LanguageCode: "en_US"));
         var viewModel = new MainWindowViewModel(session, settings, marshalToUiThread: false);
         var expectedThemes = new[]
         {
@@ -561,7 +561,7 @@ public sealed class MainWindowViewModelTests
         foreach (var (key, displayName) in expectedThemes)
         {
             viewModel.SelectedThemeKey = key;
-            Assert.Equal(displayName, viewModel.SelectedTheme?.DisplayName);
+            Assert.Equal(key == "dynamicWallpaper" ? "Dynamisk bakgrunn" : displayName, viewModel.SelectedTheme?.DisplayName);
         }
     }
 

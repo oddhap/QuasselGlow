@@ -1,5 +1,6 @@
 using QuasselGlow.Localization;
 using System.Reflection;
+using System.Text;
 
 namespace Quassel.Client.Application.Tests;
 
@@ -79,6 +80,64 @@ public sealed class UiTextCatalogTests
             var pack = Assert.Contains(code, packs);
             Assert.Equal(englishKeys, pack.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray());
         }
+    }
+
+    [Fact]
+    public void RecentUiText_IsTranslatedInEveryNonEnglishLanguage()
+    {
+        string[] keys =
+        [
+            "AutoConnectOnStartup", "AutoReconnect", "ShowDaySeparators", "UseModernLayout",
+            "UseSpaceSavingLayout", "SpaceSavingLayoutHint", "Overview", "CloseChat",
+            "StatusReconnecting", "ThemeDynamicWallpaper",
+            "LocalStateConnectionPreferencesLoadFailed", "LocalStateConnectionPreferencesSaveFailed",
+            "LocalStateCredentialProtectionDegraded", "LocalStateMessageCacheDegraded",
+            "DccAccept", "DccDecline", "DccOfferHint", "DccConnecting", "DccConnected",
+            "DccDisconnected", "DccFailed", "DccSendFailed", "DccDisconnect", "DccInput",
+            "Kick", "Ban", "KickBan"
+        ];
+        var packs = GetPacks();
+        var english = packs[UiTextCatalog.DefaultLanguageCode];
+
+        foreach (var code in ExpectedCodes.Where(code => !code.StartsWith("en_", StringComparison.Ordinal)))
+        {
+            foreach (var key in keys)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(packs[code][key]), $"{code}: {key} is empty.");
+                Assert.NotEqual(english[key], packs[code][key]);
+            }
+        }
+    }
+
+    [Fact]
+    public void EveryTranslation_PreservesFormatArguments()
+    {
+        var packs = GetPacks();
+        var english = packs[UiTextCatalog.DefaultLanguageCode];
+
+        foreach (var code in ExpectedCodes)
+        {
+            foreach (var (key, value) in english)
+            {
+                var format = CompositeFormat.Parse(packs[code][key]);
+                var expectedArguments = CompositeFormat.Parse(value).MinimumArgumentCount;
+                Assert.Equal(expectedArguments, format.MinimumArgumentCount);
+                var arguments = Enumerable.Range(0, expectedArguments)
+                    .Select(index => (object)$"__argument_{index}__").ToArray();
+                var formatted = string.Format(System.Globalization.CultureInfo.InvariantCulture, format, arguments);
+                foreach (var argument in arguments)
+                {
+                    Assert.Contains((string)argument, formatted);
+                }
+            }
+        }
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> GetPacks()
+    {
+        var field = typeof(UiTextCatalog).GetField("Packs", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(field);
+        return Assert.IsAssignableFrom<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>>(field.GetValue(null));
     }
 
     [Theory]

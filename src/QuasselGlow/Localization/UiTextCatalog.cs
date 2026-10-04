@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace QuasselGlow.Localization;
 
-public sealed class UiTextCatalog : ObservableObject
+public sealed partial class UiTextCatalog : ObservableObject
 {
     public const string DefaultLanguageCode = "en_US";
 
@@ -247,6 +247,7 @@ public sealed class UiTextCatalog : ObservableObject
         AddAsianPacks(packs);
         AddModernUiExtensions(packs);
         AddDccUiExtensions(packs);
+        AddSupplementalTranslations(packs);
         AddFallbackAliases(packs);
         return packs;
     }
