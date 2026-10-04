@@ -73,7 +73,8 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 persisted.MinimizeToTray,
                 persisted.AutoReconnect,
                 persisted.ShowDaySeparators,
-                persisted.UseClassicLayout);
+                persisted.UseClassicLayout,
+                persisted.UseSpaceSavingLayout);
 
             return ConnectionSettingsLoadResult.Loaded(settings);
         }
@@ -114,7 +115,8 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
                 MinimizeToTray = settings.MinimizeToTray,
                 AutoReconnect = settings.AutoReconnect,
                 ShowDaySeparators = settings.ShowDaySeparators,
-                UseClassicLayout = settings.UseClassicLayout
+                UseClassicLayout = settings.UseClassicLayout,
+                UseSpaceSavingLayout = settings.UseSpaceSavingLayout
             };
 
             var json = JsonSerializer.Serialize(persisted, SerializerOptions);
@@ -228,6 +230,7 @@ public sealed class LocalConnectionSettingsStore : IConnectionSettingsStore
         public bool AutoReconnect { get; init; }
         public bool ShowDaySeparators { get; init; } = true;
         public bool UseClassicLayout { get; init; } = true;
+        public bool UseSpaceSavingLayout { get; init; }
     }
 
     private sealed record ProtectedSecret(string Value, bool IsDegraded)

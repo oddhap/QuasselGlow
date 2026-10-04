@@ -651,6 +651,10 @@
                                                   IsChecked="{Binding MinimizeToTrayEnabled}" />
                                         <CheckBox Content="{Binding Strings[UseModernLayout]}"
                                                   IsChecked="{Binding UseModernLayout}" />
+                                        <CheckBox Content="{Binding Strings[UseSpaceSavingLayout]}"
+                                                  IsChecked="{Binding UseSpaceSavingLayout}"
+                                                  IsEnabled="{Binding UseModernLayout}"
+                                                  ToolTip.Tip="{Binding Strings[SpaceSavingLayoutHint]}" />
                                     </StackPanel>
 
                                     <CheckBox Grid.Row="3"
@@ -911,6 +915,10 @@
                                                   IsChecked="{Binding MinimizeToTrayEnabled}" />
                                         <CheckBox Content="{Binding Strings[UseModernLayout]}"
                                                   IsChecked="{Binding UseModernLayout}" />
+                                        <CheckBox Content="{Binding Strings[UseSpaceSavingLayout]}"
+                                                  IsChecked="{Binding UseSpaceSavingLayout}"
+                                                  IsEnabled="{Binding UseModernLayout}"
+                                                  ToolTip.Tip="{Binding Strings[SpaceSavingLayoutHint]}" />
                                     </StackPanel>
 
                                     <CheckBox Grid.Row="3"
@@ -1653,6 +1661,10 @@
                                                               IsChecked="{Binding MinimizeToTrayEnabled}" />
                                                     <CheckBox Content="{Binding Strings[UseModernLayout]}"
                                                               IsChecked="{Binding UseModernLayout}" />
+                                                    <CheckBox Content="{Binding Strings[UseSpaceSavingLayout]}"
+                                                              IsChecked="{Binding UseSpaceSavingLayout}"
+                                                              IsEnabled="{Binding UseModernLayout}"
+                                                              ToolTip.Tip="{Binding Strings[SpaceSavingLayoutHint]}" />
                                                 </StackPanel>
 
                                                 <CheckBox Grid.Row="3"

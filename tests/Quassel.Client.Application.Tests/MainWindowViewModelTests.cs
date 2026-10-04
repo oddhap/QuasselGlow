@@ -664,6 +664,59 @@ public sealed class MainWindowViewModelTests
         Assert.False(viewModel.ShowLowResolutionOverview);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SpaceSavingLayout_LoadsAndSavesPreference(bool enabled)
+    {
+        var settings = new FakeSettingsStore(new StoredConnectionSettings(UseSpaceSavingLayout: enabled));
+        await using var viewModel = new MainWindowViewModel(new FakeSessionService(), settings, marshalToUiThread: false);
+
+        Assert.Equal(enabled, viewModel.UseSpaceSavingLayout);
+        Assert.Equal(enabled, viewModel.IsLowResolutionLayout);
+
+        viewModel.UseSpaceSavingLayout = !enabled;
+
+        Assert.Equal(!enabled, viewModel.IsLowResolutionLayout);
+        Assert.Equal(!enabled, settings.Load().Settings.UseSpaceSavingLayout);
+    }
+
+    [Fact]
+    public async Task SpaceSavingLayout_StaysActiveOnLargeWindowsAndRestoresAutomaticLayout()
+    {
+        await using var viewModel = new MainWindowViewModel(new FakeSessionService(),
+            new FakeSettingsStore(new StoredConnectionSettings()), marshalToUiThread: false);
+        var changedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName);
+
+        viewModel.UseSpaceSavingLayout = true;
+        viewModel.SetLowResolutionLayout(true);
+        viewModel.SetLowResolutionLayout(false);
+
+        Assert.True(viewModel.IsLowResolutionLayout);
+        Assert.False(viewModel.ShowDesktopTopPanels);
+        Assert.False(viewModel.ShowCompactTopPanels);
+        Assert.Contains(nameof(viewModel.IsLowResolutionLayout), changedProperties);
+
+        viewModel.ToggleThemeEditorCommand.Execute(null);
+        Assert.True(viewModel.ShowLowResolutionOverview);
+        Assert.True(viewModel.ShowLowResolutionThemeEditor);
+
+        viewModel.UseSpaceSavingLayout = false;
+
+        Assert.False(viewModel.IsLowResolutionLayout);
+        Assert.True(viewModel.ShowDesktopTopPanels);
+        Assert.False(viewModel.IsOverviewOpen);
+        Assert.False(viewModel.IsThemeEditorOpen);
+
+        viewModel.SetLowResolutionLayout(true);
+        viewModel.UseSpaceSavingLayout = true;
+        viewModel.UseSpaceSavingLayout = false;
+
+        Assert.True(viewModel.IsLowResolutionLayout);
+        Assert.True(viewModel.ShowLowResolutionOverviewButton);
+    }
+
     [Fact]
     public void ThemeEditor_UsesLowResolutionOverlayWhenNeeded()
     {

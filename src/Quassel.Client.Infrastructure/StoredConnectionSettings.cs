@@ -17,4 +17,5 @@ public sealed record StoredConnectionSettings(
     bool AutoReconnect = false,
     bool ShowDaySeparators = true,
     // Legacy name: true selects the card-based interface, now called Modern.
-    bool UseClassicLayout = true);
+    bool UseClassicLayout = true,
+    bool UseSpaceSavingLayout = false);

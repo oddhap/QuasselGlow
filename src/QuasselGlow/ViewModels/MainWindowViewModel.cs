@@ -114,6 +114,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
     [ObservableProperty]
     private bool _useModernLayout = true;
 
+    [ObservableProperty]
+    private bool _useSpaceSavingLayout;
+
     public MainWindowViewModel()
         : this(new QuasselSessionService(), new LocalConnectionSettingsStore())
     {
@@ -421,7 +424,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public bool IsCompactLayout => _isCompactLayout;
 
-    public bool IsLowResolutionLayout => _isLowResolutionLayout;
+    public bool IsLowResolutionLayout => _isLowResolutionLayout || UseSpaceSavingLayout;
 
     public bool UseOverlayDismissForUserList => IsCompactLayout;
 
@@ -439,12 +442,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
 
     public void SetLowResolutionLayout(bool isLowResolution)
     {
-        if (!SetProperty(ref _isLowResolutionLayout, isLowResolution))
+        var wasLowResolution = IsLowResolutionLayout;
+        _isLowResolutionLayout = isLowResolution;
+        UpdateLowResolutionPresentation(wasLowResolution);
+    }
+
+    private void UpdateLowResolutionPresentation(bool wasLowResolution)
+    {
+        if (wasLowResolution == IsLowResolutionLayout)
         {
             return;
         }
 
-        if (isLowResolution)
+        OnPropertyChanged(nameof(IsLowResolutionLayout));
+        if (IsLowResolutionLayout)
         {
             IsThemeEditorOpen = false;
             IsConnectionEditorOpen = false;
@@ -1094,6 +1105,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         SaveSettingsIfReady();
     }
 
+    partial void OnUseSpaceSavingLayoutChanged(bool oldValue, bool newValue)
+    {
+        UpdateLowResolutionPresentation(_isLowResolutionLayout || oldValue);
+        SaveSettingsIfReady();
+    }
+
     partial void OnTrustInvalidCertificatesChanged(bool value)
     {
         SaveSettingsIfReady();
@@ -1556,6 +1573,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
         ShowDaySeparators = settings.ShowDaySeparators;
         // Keep the legacy stored flag so existing installations retain their layout.
         UseModernLayout = settings.UseClassicLayout;
+        UseSpaceSavingLayout = settings.UseSpaceSavingLayout;
     }
 
     private void SaveSettings()
@@ -1576,7 +1594,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposabl
             MinimizeToTrayEnabled,
             AutoReconnect,
             ShowDaySeparators,
-            UseModernLayout));
+            UseModernLayout,
+            UseSpaceSavingLayout));
 
         ApplyConnectionSettingsSaveResult(result);
     }

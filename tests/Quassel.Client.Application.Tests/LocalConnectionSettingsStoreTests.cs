@@ -28,7 +28,8 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
             ThemeModeKey: "dark",
             MinimizeToTray: true,
             AutoReconnect: true,
-            ShowDaySeparators: false);
+            ShowDaySeparators: false,
+            UseSpaceSavingLayout: true);
 
         var saveResult = store.Save(expected);
         var loadResult = store.Load();
@@ -51,6 +52,20 @@ public sealed class LocalConnectionSettingsStoreTests : IDisposable
         Assert.True(actual.MinimizeToTray);
         Assert.True(actual.AutoReconnect);
         Assert.False(actual.ShowDaySeparators);
+        Assert.True(actual.UseSpaceSavingLayout);
+    }
+
+    [Fact]
+    public void Load_OlderSettings_LeavesSpaceSavingLayoutDisabled()
+    {
+        Directory.CreateDirectory(_tempDirectory);
+        var path = Path.Combine(_tempDirectory, "settings.json");
+        File.WriteAllText(path, "{\"Host\":\"chat.example\"}");
+
+        var result = new LocalConnectionSettingsStore(path).Load();
+
+        Assert.Equal(ConnectionSettingsLoadStatus.Loaded, result.Status);
+        Assert.False(result.Settings.UseSpaceSavingLayout);
     }
 
     [Fact]

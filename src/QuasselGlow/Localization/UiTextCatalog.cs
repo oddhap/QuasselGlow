@@ -274,6 +274,8 @@ public sealed class UiTextCatalog : ObservableObject
             ("MinimizeToTray", "Minimize to tray"),
             ("ShowDaySeparators", "Show date separators in chat"),
             ("UseModernLayout", "Modern interface"),
+            ("UseSpaceSavingLayout", "Space-saving view"),
+            ("SpaceSavingLayoutHint", "Hide the top panels in the modern interface and access them through Overview, at any window size."),
             ("Done", "Done"),
             ("Overview", "Overview"),
             ("Network", "Network"),
@@ -400,6 +402,8 @@ public sealed class UiTextCatalog : ObservableObject
             ("MinimizeToTray", "Minimer til tray"),
             ("ShowDaySeparators", "Vis datoskille i chatten"),
             ("UseModernLayout", "Moderne grensesnitt"),
+            ("UseSpaceSavingLayout", "Plassbesparende visning"),
+            ("SpaceSavingLayoutHint", "Skjul toppanelene i det moderne grensesnittet og åpne dem via Oversikt, uansett vindusstørrelse."),
             ("Done", "Ferdig"),
             ("Overview", "Oversikt"),
             ("Network", "Nettverk"),
@@ -2318,6 +2322,8 @@ public sealed class UiTextCatalog : ObservableObject
             ("ShowDaySeparators", "Show date separators in chat"),
             ("UseModernLayout", "Modern interface"),
             ("StatusReconnecting", "Reconnecting..."),
+            ("UseSpaceSavingLayout", "Space-saving view"),
+            ("SpaceSavingLayoutHint", "Hide the top panels in the modern interface and access them through Overview, at any window size."),
             ("ConnectionSummaryEndpointOnly", "{0}"));
 
         foreach (var code in SupportedLanguageCodes)
