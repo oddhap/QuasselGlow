@@ -1,0 +1,17 @@
+--- a/src/core/eventstringifier.cpp
++++ b/src/core/eventstringifier.cpp
+@@ -823,6 +823,14 @@
+ {
+     Q_UNUSED(ctcpCmd);
+     if (e->ctcpType() == CtcpEvent::Query) {
++        // Preserve incoming DCC CHAT invitations for clients that support direct chat.
++        // Never accept the offer or open a socket in the core.
++        if (e->ctcpCmd() == "DCC"
++            && e->param().section(' ', 0, 0).compare("CHAT", Qt::CaseInsensitive) == 0
++            && !e->testFlag(EventManager::Self)) {
++            displayMsg(e, Message::Plain, "DCC " + e->param(), e->prefix(), e->target());
++            return;
++        }
+         QString unknown;
+         if (e->reply().isNull())  // all known core-side handlers (except for ACTION) set a reply!
+             //: Optional "unknown" in "Received unknown CTCP-FOO request by bar"

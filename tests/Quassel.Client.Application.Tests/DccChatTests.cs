@@ -43,6 +43,25 @@ public sealed class DccChatTests
     }
 
     [Fact]
+    public void CoreForwardedInvitation_CanBeAcceptedButDiagnosticCannot()
+    {
+        const string sender = "openmud!~openmud@178.92-221-39.customer.lyse.net";
+        var forwarded = Message("DCC CHAT chat 1557997490 5060") with { Sender = sender };
+        var model = new MessageItemViewModel(forwarded);
+        Assert.True(model.CanAcceptDccChat);
+        Assert.Equal("openmud", model.DccOffer!.Nick);
+        Assert.Equal("92.221.39.178:5060", model.DccOffer.Endpoint);
+
+        var diagnostic = forwarded with
+        {
+            Type = QuasselMessageType.Server,
+            Contents = "Received unknown CTCP-DCC request by " + sender
+        };
+        Assert.False(new MessageItemViewModel(diagnostic).HasDccChatOffer);
+        Assert.Null(DccChatOfferParser.Parse(forwarded with { Flags = QuasselMessageFlags.Ignored }));
+    }
+
+    [Fact]
     public void BacklogOffers_AreVisibleButCannotBeAccepted()
     {
         var model = new MessageItemViewModel(Message("\u0001DCC CHAT chat 1557997490 5060\u0001", QuasselMessageFlags.Backlog));
