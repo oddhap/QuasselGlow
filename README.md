@@ -87,7 +87,8 @@ or IPv6 addresses. It does not initiate outgoing offers, transfer files, or
 negotiate passive/reverse DCC (port zero). It requires the offer payload to reach
 the client. Some Quassel cores consume CTCP requests and display only “Received
 unknown CTCP-DCC request” without the endpoint; the client cannot recover the
-address and port when the core discards them. See the
+address and port when the core discards them. A core-side forwarding patch and
+installation notes are available in [DCC core fix](docs/DCC_CORE_FIX.md). See the
 [Quassel core event stringifier](https://github.com/quassel/quassel/blob/master/src/core/eventstringifier.cpp).
 
 ## Tech Stack
